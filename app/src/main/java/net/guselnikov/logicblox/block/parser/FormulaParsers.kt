@@ -17,11 +17,6 @@ import java.math.MathContext
 import java.math.RoundingMode
 import java.util.Stack
 import kotlin.Exception
-import kotlin.math.cos
-import kotlin.math.ln
-import kotlin.math.log10
-import kotlin.math.sin
-import kotlin.math.tan
 import kotlin.text.StringBuilder
 
 private fun <T> T.oneOf(vararg candidates: T): Boolean {
@@ -58,6 +53,8 @@ enum class OperatorType {
     RIGHT_BRACKET,
     EQUALS,
     NOT_EQUALS,
+    OR,
+    AND,
     FACTORIAL,
     DEGREES
 }
@@ -73,18 +70,19 @@ class Operator(val operation: OperatorType) : Token() {
 
     val precedence: Int
         get() = when (operation) {
-            OperatorType.LESS, OperatorType.GREATER, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 0
-            OperatorType.PLUS, OperatorType.MINUS -> 1
-            OperatorType.MULT, OperatorType.DIV -> 2
-            OperatorType.POW -> 3
-            OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG -> 4
-            OperatorType.FACTORIAL, OperatorType.DEGREES -> 5
+            OperatorType.OR, OperatorType.AND -> 0
+            OperatorType.LESS, OperatorType.GREATER, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 1
+            OperatorType.PLUS, OperatorType.MINUS -> 2
+            OperatorType.MULT, OperatorType.DIV -> 3
+            OperatorType.POW -> 4
+            OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG -> 5
+            OperatorType.FACTORIAL, OperatorType.DEGREES -> 6
             else -> -1
         }
 
     val argumentsNumber: Int
         get() = when (operation) {
-            OperatorType.LESS, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
+            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
             else -> 1
         }
 }
@@ -93,18 +91,21 @@ sealed class Value : Token() {
     abstract fun toValueNumber(): ValueNumber
     abstract fun toDecimal(): BigDecimal
     abstract fun toDouble(): Double
+    abstract fun toBoolean(): Boolean
 }
 
 class Number(val decimal: BigDecimal) : Value() {
     override fun toValueNumber() = ValueDecimal(decimal)
     override fun toDecimal(): BigDecimal = decimal
     override fun toDouble(): Double = decimal.toDouble()
+    override fun toBoolean(): Boolean = decimal == BigDecimal.ZERO
 }
 
 class Bool(val bool: Boolean) : Value() {
     override fun toValueNumber(): ValueNumber = ValueBoolean(bool)
     override fun toDecimal(): BigDecimal = if (bool) BigDecimal.ONE else BigDecimal.ZERO
     override fun toDouble(): Double = if (bool) 1.0 else 0.0
+    override fun toBoolean(): Boolean = bool
 }
 
 class Word(val string: String) : Token()
@@ -120,8 +121,8 @@ private fun parse(formula: String): List<Token> {
     val tokens = arrayListOf<Token>()
     var readingNumber = false
     var readingWord = false
-    var currentNumber = StringBuilder()
-    var currentWord = StringBuilder()
+    val currentNumber = StringBuilder()
+    val currentWord = StringBuilder()
 
     fun writeWord() {
         readingWord = false
@@ -163,6 +164,8 @@ private fun parse(formula: String): List<Token> {
             "==",
             "!=",
             "!",
+            "||",
+            "&&",
             "°",
             "•",
             "×",
@@ -265,6 +268,8 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                 OperatorType.GREATER,
                 OperatorType.EQUALS,
                 OperatorType.NOT_EQUALS,
+                OperatorType.OR,
+                OperatorType.AND,
                 OperatorType.UNARY_MINUS,
                 OperatorType.SIN,
                 OperatorType.SQRT,
@@ -284,7 +289,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                     }
                     thereIsHigherPrecedence = if (topStackOperator == null) false
                     else {
-                        if (token.precedence <= 2) topStackOperator.precedence >= token.precedence
+                        if (token.precedence <= 3) topStackOperator.precedence >= token.precedence
                         else topStackOperator.precedence > token.precedence
                     }
 
@@ -406,6 +411,8 @@ private fun calculate(operator: Operator, vararg args: Value): Value {
         OperatorType.LESS -> Bool(lhs.toDecimal() < rhs.toDecimal())
         OperatorType.EQUALS -> Bool(lhs.toDecimal() == rhs.toDecimal())
         OperatorType.NOT_EQUALS -> Bool(lhs.toDecimal() != rhs.toDecimal())
+        OperatorType.OR -> Bool(lhs.toBoolean() || rhs.toBoolean())
+        OperatorType.AND -> Bool(lhs.toBoolean() && rhs.toBoolean())
         OperatorType.GREATER -> Bool(lhs.toDecimal() > rhs.toDecimal())
         OperatorType.SQRT -> Number(pow(lhs.toDecimal(), BigDecimal("0.5")))
         OperatorType.UNARY_MINUS -> Number(lhs.toDecimal().multiply(BigDecimal(-1)))
@@ -421,6 +428,7 @@ private fun calculate(operator: Operator, vararg args: Value): Value {
     }
 }
 
+@Suppress("Unused")
 private fun printTokens(tokens: List<Token>): String {
     val builder = StringBuilder()
     tokens.forEach {
@@ -472,5 +480,7 @@ fun String.toOperatorType(): OperatorType? = when (this) {
     "÷" -> OperatorType.DIV
     ":" -> OperatorType.DIV
     "°" -> OperatorType.DEGREES
+    "||" -> OperatorType.OR
+    "&&" -> OperatorType.AND
     else -> null
 }
