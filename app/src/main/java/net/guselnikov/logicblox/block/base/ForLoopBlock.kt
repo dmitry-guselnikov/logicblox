@@ -16,6 +16,7 @@ class ForLoopBlock(private val numberOfIterations: Int, private val iterationBlo
         var iterationInputs: Map<Int, ValueType> = mapOf()
         for (i in 0 until numberOfIterations) {
             iterationInputs = iterationBlock.compute(i, iterationInputs)
+            if (iterationBlock.forceBreak) break
         }
 
         return iterationInputs

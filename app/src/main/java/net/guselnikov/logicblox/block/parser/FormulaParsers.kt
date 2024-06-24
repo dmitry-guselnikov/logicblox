@@ -62,7 +62,8 @@ enum class OperatorType {
     AND,
     FACTORIAL,
     DEGREES,
-    RAND
+    RAND,
+    ASSIGN
 }
 
 sealed class Token
@@ -208,6 +209,16 @@ private fun parse(formula: String): List<Token> {
                 currentWord.clear()
             }
 
+            it == '=' -> {
+                val variableName = currentWord.toString()
+                if (tokens.isNotEmpty() || readingNumber || !readingWord || variableName.isBlank()) return listOf()
+                writeWord()
+                tokens.add(Operator(OperatorType.ASSIGN))
+
+                readingWord = false
+                currentWord.clear()
+            }
+
             it == '.' -> {
                 if (!readingNumber) return listOf()
                 currentNumber.append(it)
@@ -266,6 +277,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
             token is Operator && token.operation == OperatorType.LEFT_BRACKET -> {
                 operatorsStack.push(token)
             }
+
             token is Operator && token.operation == OperatorType.RIGHT_BRACKET -> {
                 var leftBracketToPop = false
                 while (!leftBracketToPop) {
@@ -288,6 +300,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                     }
                 }
             }
+
             token is Operator -> {
                 var thereIsHigherPrecedence = true
                 while (thereIsHigherPrecedence) {
@@ -416,6 +429,7 @@ private fun calculate(operator: Operator, vararg args: Value): Value {
                 MathContext.DECIMAL128
             )
         )
+
         OperatorType.RAND -> Number(BigDecimal(Math.random()))
         else -> Bool(false)
     }
@@ -446,13 +460,21 @@ fun factorial(x: BigDecimal): BigDecimal {
     return res
 }
 
-fun calculateFormula(formula: String, params: Map<String, ValueNumber>): ValueType = try {
-    val tokens = parse(formula)
-    val sortedTokens = sortTokens(tokens)
-    calculateTokens(sortedTokens, params)
-} catch (e: Exception) {
-    Undefined
-}
+fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
+    try {
+        var tokens = parse(formula)
+        val variableName: String? =
+            if ((tokens.getOrNull(1) as? Operator)?.operation == OperatorType.ASSIGN) {
+                val name = (tokens[0] as Word).string
+                tokens = tokens.subList(2, tokens.size)
+                name
+            } else null
+
+        val sortedTokens = sortTokens(tokens)
+        Pair(variableName, calculateTokens(sortedTokens, params))
+    } catch (e: Exception) {
+        Pair(null, Undefined)
+    }
 
 fun String.toOperatorType(): OperatorType? = when (this.lowercase()) {
     "√" -> OperatorType.SQRT

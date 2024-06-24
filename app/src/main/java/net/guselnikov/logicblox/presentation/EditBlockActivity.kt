@@ -23,7 +23,7 @@ class EditBlockActivity : AppCompatActivity() {
     private lateinit var outputsNumberET: EditText
     private lateinit var outputsFormulaContainer: ViewGroup
     private lateinit var layoutInflater: LayoutInflater
-    private lateinit var concoleLog: TextView
+    private lateinit var consoleLog: TextView
     private lateinit var runButton: Button
 
     private var numberOfInputs: Int = 0
@@ -41,7 +41,7 @@ class EditBlockActivity : AppCompatActivity() {
         outputsNumberET = findViewById(R.id.outputs_number)
         outputsFormulaContainer = findViewById(R.id.outputs_container)
         runButton = findViewById(R.id.button_run)
-        concoleLog = findViewById(R.id.concole_log)
+        consoleLog = findViewById(R.id.concole_log)
 
         inputsNumberET.setText(viewModel.inputs.size.toString())
         inputsNumberET.doOnTextChanged { text, _, _, _ ->
@@ -79,7 +79,7 @@ class EditBlockActivity : AppCompatActivity() {
                 stringBuilder.append("\n")
             }
 
-            concoleLog.text = stringBuilder.toString()
+            consoleLog.text = stringBuilder.toString()
         }
 
         createInputs(viewModel.inputs.size, viewModel.inputs)

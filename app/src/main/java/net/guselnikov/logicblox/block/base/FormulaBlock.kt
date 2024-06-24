@@ -25,8 +25,15 @@ class FormulaBlock(private vararg val formula: String) :
 
         val outputs = hashMapOf<Int, ValueType>()
 
+
         formula.forEachIndexed { index, s ->
-            outputs[index] = calculateFormula(s, params)
+            val result = calculateFormula(s, params)
+            val newVarName = result.first
+            val value = result.second
+            if (newVarName != null && value is ValueNumber) {
+                params[newVarName] = value
+            }
+            outputs[index] = value
         }
 
         return outputs
