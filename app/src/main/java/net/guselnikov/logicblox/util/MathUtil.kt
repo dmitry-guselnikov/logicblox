@@ -55,3 +55,11 @@ fun round(x: BigDecimal): BigDecimal {
 
     return x.setScale(14, RoundingMode.HALF_UP)
 }
+
+fun roundToInt(x: BigDecimal): BigDecimal {
+    if (x.abs() < BigDecimal.ONE) {
+        return (x + BigDecimal.ONE).setScale(0, RoundingMode.FLOOR) - BigDecimal.ONE
+    }
+
+    return x.setScale(0, RoundingMode.FLOOR)
+}
