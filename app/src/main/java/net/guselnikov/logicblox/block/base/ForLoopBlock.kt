@@ -10,13 +10,15 @@ import net.guselnikov.logicblox.block.ValueType
  * IterationBlock уже знает, как обращаться с номером итерации, принимает
  * родительские инпуты, а на вход метода compute ожидает выходные значения предыдущей итерации
  */
-class ForLoopBlock(private val numberOfIterations: Int, private val iterationBlock: IterationBlock) : Block() {
+abstract class LoopBlock(private val iterationBlock: IterationBlock) : Block() {
     override suspend fun compute(inputs: Map<Int, ValueType>): Map<Int, ValueType> {
         iterationBlock.loopInputs = inputs
         var iterationInputs: Map<Int, ValueType> = mapOf()
-        for (i in 0 until numberOfIterations) {
-            iterationInputs = iterationBlock.compute(i, iterationInputs)
-            if (iterationBlock.forceBreak) break
+        var index = 0
+        while (true) {
+            iterationInputs = iterationBlock.compute(index, iterationInputs)
+            if (iterationBlock.shouldBreak) break
+            index++
         }
 
         return iterationInputs

@@ -14,7 +14,7 @@ abstract class IterationBlock: Block() {
 
     var loopInputs: Map<Int, ValueType> = mapOf()
 
-    var forceBreak: Boolean = false
+    var shouldBreak: Boolean = false
 
     abstract suspend fun compute(iteration: Int, iterationInputs: Map<Int, ValueType>): Map<Int, ValueType>
 

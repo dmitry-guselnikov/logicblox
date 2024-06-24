@@ -119,6 +119,88 @@ class Bool(val bool: Boolean) : Value() {
 
 class Word(val string: String) : Token()
 
+data class ConditionalFormula(
+    val condition: String,
+    val trueStatementFormula: String,
+    val falseStatementFormula: String
+)
+
+enum class ReadingMode {
+    INIT,
+    IF_SKIPPED,
+    CONDITION,
+    TRUE_STATEMENT,
+    TRUE_STATEMENT_COMPLETED,
+    ELSE_SKIPPED,
+    FALSE_STATEMENT,
+    COMPLETED
+}
+
+private fun breakConditionalFormula(formula: String): ConditionalFormula? {
+    val conditionStringBuilder = StringBuilder()
+    val trueStatementStringBuilder = StringBuilder()
+    val falseStatementStringBuilder = StringBuilder()
+
+    var mode: ReadingMode = ReadingMode.INIT
+    var skipChars = 0
+    formula.forEachIndexed { index, char ->
+        if (skipChars > 0) {
+            skipChars--
+            return@forEachIndexed
+        }
+
+        when (mode) {
+            ReadingMode.INIT -> {
+                if (formula.slice(index..formula.lastIndex).startsWith("if")) {
+                    mode = ReadingMode.IF_SKIPPED
+                    skipChars = 1
+                }
+            }
+            ReadingMode.IF_SKIPPED -> {
+                if (char == '(') {
+                    mode = ReadingMode.CONDITION
+                    conditionStringBuilder.append(char)
+                }
+            }
+            ReadingMode.CONDITION -> {
+                when (char) {
+                    '{' -> mode = ReadingMode.TRUE_STATEMENT
+                    else -> conditionStringBuilder.append(char)
+                }
+            }
+            ReadingMode.TRUE_STATEMENT -> {
+                when (char) {
+                    '}' -> mode = ReadingMode.TRUE_STATEMENT_COMPLETED
+                    else -> trueStatementStringBuilder.append(char)
+                }
+            }
+            ReadingMode.TRUE_STATEMENT_COMPLETED -> {
+                if (formula.slice(index..formula.lastIndex).startsWith("else")) {
+                    mode = ReadingMode.ELSE_SKIPPED
+                    skipChars = 3
+                }
+            }
+            ReadingMode.ELSE_SKIPPED -> {
+                if (char == '{') mode = ReadingMode.FALSE_STATEMENT
+            }
+            ReadingMode.FALSE_STATEMENT -> {
+                when (char) {
+                    '}' -> mode = ReadingMode.COMPLETED
+                    else -> falseStatementStringBuilder.append(char)
+                }
+            }
+            ReadingMode.COMPLETED -> return@forEachIndexed
+        }
+    }
+
+    val conditionStr = conditionStringBuilder.toString()
+    val trueStatementFormula = trueStatementStringBuilder.toString()
+    val falseStatementFormula = falseStatementStringBuilder.toString()
+
+    if (conditionStr.isNotBlank() && trueStatementFormula.isNotBlank()) return ConditionalFormula(conditionStr, trueStatementFormula, falseStatementFormula)
+    return null
+}
+
 private fun parse(formula: String): List<Token> {
     // Parse the given string to tokens
     val tokens = arrayListOf<Token>()
@@ -353,7 +435,7 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
 
 
 
-    while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Number) {
+    while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
         val indexOfOperator = transformedTokens.indexOfFirst {
             it is Operator
         }
@@ -462,7 +544,19 @@ fun factorial(x: BigDecimal): BigDecimal {
 
 fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
     try {
-        var tokens = parse(formula)
+        var formulaToCalculate: String = formula
+        val conditionalFormula = breakConditionalFormula(formula)
+        if (conditionalFormula != null) {
+            // Calculate condition
+            val conditionTokens = parse(conditionalFormula.condition)
+            val sortedConditionTokens = sortTokens(conditionTokens)
+            val conditionResult = calculateTokens(sortedConditionTokens, params)
+            if (conditionResult is ValueNumber) {
+                formulaToCalculate = if (conditionResult.toBoolean()) conditionalFormula.trueStatementFormula else conditionalFormula.falseStatementFormula
+            }
+        }
+
+        var tokens = parse(formulaToCalculate)
         val variableName: String? =
             if ((tokens.getOrNull(1) as? Operator)?.operation == OperatorType.ASSIGN) {
                 val name = (tokens[0] as Word).string
