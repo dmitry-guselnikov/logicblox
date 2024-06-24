@@ -29,11 +29,14 @@ private fun <T> T.oneOf(vararg candidates: T): Boolean {
 
 private fun String.startsWithOneOf(vararg substring: String): String? {
     substring.forEach {
-        if (startsWith(it)) return it
+        if (startsWith(prefix = it, ignoreCase = true)) return it
     }
     return null
 }
 
+// TODO: Добавить операторы округления
+// TODO: Добавить операции со строками
+// TODO: Добавить опеации с массивами
 enum class OperatorType {
     PLUS,
     MINUS,
@@ -42,6 +45,7 @@ enum class OperatorType {
     MULT,
     DIV,
     POW,
+    MOD,
     UNARY_MINUS,
     SQRT,
     SIN,
@@ -72,7 +76,7 @@ class Operator(val operation: OperatorType) : Token() {
         get() = when (operation) {
             OperatorType.OR, OperatorType.AND -> 0
             OperatorType.LESS, OperatorType.GREATER, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 1
-            OperatorType.PLUS, OperatorType.MINUS -> 2
+            OperatorType.MOD, OperatorType.PLUS, OperatorType.MINUS -> 2
             OperatorType.MULT, OperatorType.DIV -> 3
             OperatorType.POW -> 4
             OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG -> 5
@@ -82,7 +86,7 @@ class Operator(val operation: OperatorType) : Token() {
 
     val argumentsNumber: Int
         get() = when (operation) {
-            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
+            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MOD, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
             else -> 1
         }
 }
@@ -98,7 +102,7 @@ class Number(val decimal: BigDecimal) : Value() {
     override fun toValueNumber() = ValueDecimal(decimal)
     override fun toDecimal(): BigDecimal = decimal
     override fun toDouble(): Double = decimal.toDouble()
-    override fun toBoolean(): Boolean = decimal == BigDecimal.ZERO
+    override fun toBoolean(): Boolean = decimal != BigDecimal.ZERO
 }
 
 class Bool(val bool: Boolean) : Value() {
@@ -110,12 +114,6 @@ class Bool(val bool: Boolean) : Value() {
 
 class Word(val string: String) : Token()
 
-/**
- * 1. Сделать поддержку унарных операций
- * 2. Сделать поддержку булевых операций с минимальным прецедентом
- *    В формуле 1+2 == 2+1, оператор == должен выполниться последним и вернуть ValueBoolean
- * 3.
- */
 private fun parse(formula: String): List<Token> {
     // Parse the given string to tokens
     val tokens = arrayListOf<Token>()
@@ -127,6 +125,7 @@ private fun parse(formula: String): List<Token> {
     fun writeWord() {
         readingWord = false
         when (val word = currentWord.toString()) {
+            // TODO: Перенести все операторы в парсер операторов
             "sin" -> tokens.add(Operator(OperatorType.SIN))
             "cos" -> tokens.add(Operator(OperatorType.COS))
             "tg" -> tokens.add(Operator(OperatorType.TAN))
@@ -154,6 +153,7 @@ private fun parse(formula: String): List<Token> {
             "√",
             "+",
             "-",
+            "**",
             "*",
             "/",
             "^",
@@ -170,7 +170,9 @@ private fun parse(formula: String): List<Token> {
             "•",
             "×",
             "÷",
-            ":"
+            ":",
+            "%",
+            "mod"
         )
 
         when {
@@ -264,6 +266,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                 OperatorType.POW,
                 OperatorType.PLUS,
                 OperatorType.MINUS,
+                OperatorType.MOD,
                 OperatorType.LESS,
                 OperatorType.GREATER,
                 OperatorType.EQUALS,
@@ -406,7 +409,7 @@ private fun calculate(operator: Operator, vararg args: Value): Value {
         } catch (e: Exception) {
             Bool(false)
         }
-
+        OperatorType.MOD -> Number(lhs.toDecimal() % rhs.toDecimal())
         OperatorType.POW -> Number(pow(lhs.toDecimal(), rhs.toDecimal()))
         OperatorType.LESS -> Bool(lhs.toDecimal() < rhs.toDecimal())
         OperatorType.EQUALS -> Bool(lhs.toDecimal() == rhs.toDecimal())
@@ -482,5 +485,8 @@ fun String.toOperatorType(): OperatorType? = when (this) {
     "°" -> OperatorType.DEGREES
     "||" -> OperatorType.OR
     "&&" -> OperatorType.AND
+    "%" -> OperatorType.MOD
+    "mod" -> OperatorType.MOD
+    "**" -> OperatorType.POW
     else -> null
 }

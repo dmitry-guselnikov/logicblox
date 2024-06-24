@@ -27,7 +27,7 @@ class ValueText(val text: String) : ValueType() {
 class ValueDecimal(val decimal: BigDecimal) : ValueNumber() {
     override fun toDouble(): Double = decimal.toDouble()
     override fun toLong(): Long = decimal.toLong()
-    override fun toBoolean(): Boolean = decimal == BigDecimal.ZERO
+    override fun toBoolean(): Boolean = decimal != BigDecimal.ZERO
     override fun isInteger(): Boolean =
         decimal.signum() == 0 || decimal.scale() <= 0 || decimal.stripTrailingZeros().scale() <= 0
     override fun negative() = ValueDecimal(decimal.negate())
