@@ -41,13 +41,16 @@ enum class OperatorType {
     PLUS,
     MINUS,
     LESS,
+    LESS_OR_EQUAL,
     GREATER,
+    GREATER_OR_EQUAL,
     MULT,
     DIV,
     POW,
     MOD,
     UNARY_MINUS,
     SQRT,
+    ABS,
     SIN,
     COS,
     TAN,
@@ -78,11 +81,11 @@ class Operator(val operation: OperatorType) : Token() {
     val precedence: Int
         get() = when (operation) {
             OperatorType.OR, OperatorType.AND -> 0
-            OperatorType.LESS, OperatorType.GREATER, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 1
+            OperatorType.LESS, OperatorType.LESS_OR_EQUAL, OperatorType.GREATER, OperatorType.GREATER_OR_EQUAL, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 1
             OperatorType.MOD, OperatorType.PLUS, OperatorType.MINUS -> 2
             OperatorType.MULT, OperatorType.DIV -> 3
             OperatorType.POW -> 4
-            OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG, OperatorType.INT -> 5
+            OperatorType.ABS, OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG, OperatorType.INT -> 5
             OperatorType.FACTORIAL, OperatorType.DEGREES -> 6
             OperatorType.RAND -> 7
             else -> -1
@@ -90,7 +93,7 @@ class Operator(val operation: OperatorType) : Token() {
 
     val argumentsNumber: Int
         get() = when (operation) {
-            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MOD, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
+            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.LESS_OR_EQUAL, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.GREATER_OR_EQUAL, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MOD, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
             OperatorType.RAND -> 0
             else -> 1
         }
@@ -156,39 +159,46 @@ private fun breakConditionalFormula(formula: String): ConditionalFormula? {
                     skipChars = 1
                 }
             }
+
             ReadingMode.IF_SKIPPED -> {
                 if (char == '(') {
                     mode = ReadingMode.CONDITION
                     conditionStringBuilder.append(char)
                 }
             }
+
             ReadingMode.CONDITION -> {
                 when (char) {
                     '{' -> mode = ReadingMode.TRUE_STATEMENT
                     else -> conditionStringBuilder.append(char)
                 }
             }
+
             ReadingMode.TRUE_STATEMENT -> {
                 when (char) {
                     '}' -> mode = ReadingMode.TRUE_STATEMENT_COMPLETED
                     else -> trueStatementStringBuilder.append(char)
                 }
             }
+
             ReadingMode.TRUE_STATEMENT_COMPLETED -> {
                 if (formula.slice(index..formula.lastIndex).startsWith("else")) {
                     mode = ReadingMode.ELSE_SKIPPED
                     skipChars = 3
                 }
             }
+
             ReadingMode.ELSE_SKIPPED -> {
                 if (char == '{') mode = ReadingMode.FALSE_STATEMENT
             }
+
             ReadingMode.FALSE_STATEMENT -> {
                 when (char) {
                     '}' -> mode = ReadingMode.COMPLETED
                     else -> falseStatementStringBuilder.append(char)
                 }
             }
+
             ReadingMode.COMPLETED -> return@forEachIndexed
         }
     }
@@ -197,7 +207,11 @@ private fun breakConditionalFormula(formula: String): ConditionalFormula? {
     val trueStatementFormula = trueStatementStringBuilder.toString()
     val falseStatementFormula = falseStatementStringBuilder.toString()
 
-    if (conditionStr.isNotBlank() && trueStatementFormula.isNotBlank()) return ConditionalFormula(conditionStr, trueStatementFormula, falseStatementFormula)
+    if (conditionStr.isNotBlank() && trueStatementFormula.isNotBlank()) return ConditionalFormula(
+        conditionStr,
+        trueStatementFormula,
+        falseStatementFormula
+    )
     return null
 }
 
@@ -239,9 +253,14 @@ private fun parse(formula: String): List<Token> {
             "(",
             ")",
             "<",
+            "<=",
+            "≤",
             ">",
+            ">=",
+            "≥",
             "==",
             "!=",
+            "≠",
             "!",
             "||",
             "&&",
@@ -252,6 +271,7 @@ private fun parse(formula: String): List<Token> {
             ":",
             "%",
             "mod",
+            "abs",
             "sin",
             "cos",
             "tg",
@@ -491,13 +511,16 @@ private fun calculate(operator: Operator, vararg args: Value): Value {
         OperatorType.MOD -> Number(lhs.toDecimal() % rhs.toDecimal())
         OperatorType.POW -> Number(pow(lhs.toDecimal(), rhs.toDecimal()))
         OperatorType.LESS -> Bool(lhs.toDecimal() < rhs.toDecimal())
+        OperatorType.LESS_OR_EQUAL -> Bool(lhs.toDecimal() <= rhs.toDecimal())
         OperatorType.EQUALS -> Bool(lhs.toDecimal() == rhs.toDecimal())
         OperatorType.NOT_EQUALS -> Bool(lhs.toDecimal() != rhs.toDecimal())
         OperatorType.OR -> Bool(lhs.toBoolean() || rhs.toBoolean())
         OperatorType.AND -> Bool(lhs.toBoolean() && rhs.toBoolean())
         OperatorType.GREATER -> Bool(lhs.toDecimal() > rhs.toDecimal())
+        OperatorType.GREATER_OR_EQUAL -> Bool(lhs.toDecimal() >= rhs.toDecimal())
         OperatorType.SQRT -> Number(pow(lhs.toDecimal(), BigDecimal("0.5")))
         OperatorType.UNARY_MINUS -> Number(lhs.toDecimal().multiply(BigDecimal(-1)))
+        OperatorType.ABS -> Number(lhs.toDecimal().abs())
         OperatorType.SIN -> Number(sinBigDecimal(lhs.toDecimal()))
         OperatorType.COS -> Number(cosBigDecimal(lhs.toDecimal()))
         OperatorType.TAN -> Number(tanBigDecimal(lhs.toDecimal()))
@@ -552,7 +575,8 @@ fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<St
             val sortedConditionTokens = sortTokens(conditionTokens)
             val conditionResult = calculateTokens(sortedConditionTokens, params)
             if (conditionResult is ValueNumber) {
-                formulaToCalculate = if (conditionResult.toBoolean()) conditionalFormula.trueStatementFormula else conditionalFormula.falseStatementFormula
+                formulaToCalculate =
+                    if (conditionResult.toBoolean()) conditionalFormula.trueStatementFormula else conditionalFormula.falseStatementFormula
             }
         }
 
@@ -578,11 +602,16 @@ fun String.toOperatorType(): OperatorType? = when (this.lowercase()) {
     "/" -> OperatorType.DIV
     "^" -> OperatorType.POW
     "<" -> OperatorType.LESS
+    "<=" -> OperatorType.LESS_OR_EQUAL
+    "≤" -> OperatorType.LESS_OR_EQUAL
     ">" -> OperatorType.GREATER
+    ">=" -> OperatorType.GREATER_OR_EQUAL
+    "≥" -> OperatorType.GREATER_OR_EQUAL
     "(" -> OperatorType.LEFT_BRACKET
     ")" -> OperatorType.RIGHT_BRACKET
     "==" -> OperatorType.EQUALS
     "!=" -> OperatorType.NOT_EQUALS
+    "≠" -> OperatorType.NOT_EQUALS
     "!" -> OperatorType.FACTORIAL
     "•" -> OperatorType.MULT
     "×" -> OperatorType.MULT
@@ -594,6 +623,7 @@ fun String.toOperatorType(): OperatorType? = when (this.lowercase()) {
     "%" -> OperatorType.MOD
     "mod" -> OperatorType.MOD
     "**" -> OperatorType.POW
+    "abs" -> OperatorType.ABS
     "sin" -> OperatorType.SIN
     "cos" -> OperatorType.COS
     "tg" -> OperatorType.TAN
