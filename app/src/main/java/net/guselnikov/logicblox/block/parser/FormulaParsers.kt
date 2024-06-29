@@ -57,8 +57,6 @@ enum class OperatorType {
     LN,
     LG,
     INT,
-    LEFT_BRACKET,
-    RIGHT_BRACKET,
     EQUALS,
     NOT_EQUALS,
     OR,
@@ -121,6 +119,9 @@ class Bool(val bool: Boolean) : Value() {
 }
 
 class Word(val string: String) : Token()
+
+object LeftBracket : Token()
+object RightBracket : Token()
 
 data class ConditionalFormula(
     val condition: String,
@@ -234,6 +235,18 @@ private fun parse(formula: String): List<Token> {
         currentWord.clear()
     }
 
+    fun stopReadings() {
+        if (readingWord) {
+            writeWord()
+        }
+
+        if (readingNumber) {
+            readingNumber = false
+            tokens.add(Number(BigDecimal(currentNumber.toString())))
+            currentNumber.clear()
+        }
+    }
+
     var symbolsToSkip = 0
 
     formula.forEachIndexed { index, it ->
@@ -250,8 +263,6 @@ private fun parse(formula: String): List<Token> {
             "*",
             "/",
             "^",
-            "(",
-            ")",
             "<",
             "<=",
             "≤",
@@ -286,20 +297,12 @@ private fun parse(formula: String): List<Token> {
             operatorStr != null -> {
                 symbolsToSkip = operatorStr.length - 1
 
-                if (readingWord) {
-                    writeWord()
-                }
+                stopReadings()
 
-                if (readingNumber) {
-                    readingNumber = false
-                    tokens.add(Number(BigDecimal(currentNumber.toString())))
-                    currentNumber.clear()
-                }
-
-                val lastOperator = tokens.lastOrNull() as? Operator
+                val lastOperator = tokens.lastOrNull()
                 val currentOperator = operatorStr.toOperatorType()
                 when {
-                    it == '-' && (tokens.isEmpty() || (lastOperator is Operator && lastOperator.operation != OperatorType.RIGHT_BRACKET)) -> tokens.add(
+                    it == '-' && (tokens.isEmpty() || (lastOperator is Operator)) -> tokens.add(
                         Operator(OperatorType.UNARY_MINUS)
                     )
 
@@ -307,8 +310,16 @@ private fun parse(formula: String): List<Token> {
                         tokens.add(Operator(operation))
                     }
                 }
+            }
 
-                currentWord.clear()
+            it == '(' -> {
+                stopReadings()
+                tokens.add(LeftBracket)
+            }
+
+            it == ')' -> {
+                stopReadings()
+                tokens.add(RightBracket)
             }
 
             it == '=' -> {
@@ -372,24 +383,24 @@ private fun parse(formula: String): List<Token> {
  */
 private fun sortTokens(tokens: List<Token>): List<Token> {
     val outputQueue = arrayListOf<Token>()
-    val operatorsStack = Stack<Operator>()
+    val operatorsStack = Stack<Token>()
     tokens.forEach { token ->
         when {
             token is Value || token is Word -> outputQueue.add(token)
-            token is Operator && token.operation == OperatorType.LEFT_BRACKET -> {
+            token is LeftBracket -> {
                 operatorsStack.push(token)
             }
 
-            token is Operator && token.operation == OperatorType.RIGHT_BRACKET -> {
+            token is RightBracket -> {
                 var leftBracketToPop = false
                 while (!leftBracketToPop) {
-                    val topStackOperator: Operator? = try {
+                    val topStackOperator = try {
                         operatorsStack.peek()
                     } catch (e: Exception) {
                         return listOf()
                     }
                     leftBracketToPop = if (topStackOperator == null) true
-                    else topStackOperator.operation == OperatorType.LEFT_BRACKET
+                    else topStackOperator is LeftBracket
 
                     if (!leftBracketToPop) {
                         outputQueue.add(operatorsStack.pop())
@@ -406,12 +417,12 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
             token is Operator -> {
                 var thereIsHigherPrecedence = true
                 while (thereIsHigherPrecedence) {
-                    val topStackOperator: Operator? = try {
+                    val topStackOperator = try {
                         operatorsStack.peek()
                     } catch (e: Exception) {
                         null
                     }
-                    thereIsHigherPrecedence = if (topStackOperator == null) false
+                    thereIsHigherPrecedence = if (topStackOperator == null || topStackOperator !is Operator) false
                     else {
                         if (token.precedence <= 3) topStackOperator.precedence >= token.precedence
                         else topStackOperator.precedence > token.precedence
@@ -548,6 +559,8 @@ private fun printTokens(tokens: List<Token>): String {
             is Operator -> builder.append(it.operation.name)
             is Value -> builder.append(it.toDouble())
             is Word -> builder.append(it.string)
+            LeftBracket -> builder.append('(')
+            RightBracket -> builder.append(')')
         }
 
         builder.append(" ")
@@ -607,8 +620,6 @@ fun String.toOperatorType(): OperatorType? = when (this.lowercase()) {
     ">" -> OperatorType.GREATER
     ">=" -> OperatorType.GREATER_OR_EQUAL
     "≥" -> OperatorType.GREATER_OR_EQUAL
-    "(" -> OperatorType.LEFT_BRACKET
-    ")" -> OperatorType.RIGHT_BRACKET
     "==" -> OperatorType.EQUALS
     "!=" -> OperatorType.NOT_EQUALS
     "≠" -> OperatorType.NOT_EQUALS

@@ -1,29 +1,8 @@
-package net.guselnikov.logicblox
+package net.guselnikov.logicblox.presentation
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import net.guselnikov.logicblox.block.Block
-import net.guselnikov.logicblox.block.Undefined
-import net.guselnikov.logicblox.block.ValueNumber
-import net.guselnikov.logicblox.block.base.AdditionBlock
-import net.guselnikov.logicblox.block.base.BlockRelation
-import net.guselnikov.logicblox.block.base.DivisionBlock
-import net.guselnikov.logicblox.block.base.FormulaBlock
-import net.guselnikov.logicblox.block.base.GroupBlock
-import net.guselnikov.logicblox.block.base.LinearBlock
-import net.guselnikov.logicblox.block.base.MultiplicationBlock
-import net.guselnikov.logicblox.block.base.ProxyBlock
-import net.guselnikov.logicblox.block.base.SquareRootBlock
-import net.guselnikov.logicblox.block.base.SubtractionBlock
-import net.guselnikov.logicblox.block.condition.ConditionBlock
-import net.guselnikov.logicblox.block.condition.ConditionEqualsTo
-import net.guselnikov.logicblox.block.condition.ConditionLessThan
-import net.guselnikov.logicblox.block.condition.FormulaCondition
-import java.lang.StringBuilder
+import net.guselnikov.logicblox.R
 
 /**
  * 1. fun compute -> suspend fun compute

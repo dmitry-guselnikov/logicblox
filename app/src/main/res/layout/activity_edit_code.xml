@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".presentation.EditCodeActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:paddingHorizontal="16dp"
+        android:gravity="end"
+        android:layout_alignParentTop="true"
+        android:background="#EEEEEE"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/btn_run"
+            android:layout_width="64dp"
+            app:srcCompat="@drawable/btn_run"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:padding="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_alignParentEnd="true"
+            android:focusableInTouchMode="false"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/saved_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toStartOf="@id/btn_run"
+            android:layout_centerVertical="true"
+            android:text="@string/changes_saved" />
+
+        <TextView
+            android:id="@+id/btn_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:textStyle="bold"
+            android:textColor="#308010"
+            android:padding="16dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:text="@string/save_btn" />
+
+    </RelativeLayout>
+
+    <EditText
+        android:id="@+id/code_input"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="64dp"
+        android:fontFamily="@font/firacode"
+        tools:text="if (a>0) {\n\t\t\tb=20\n}"
+        android:gravity="start"
+        android:padding="8dp"
+        android:inputType="textFilter|textMultiLine|textNoSuggestions" />
+
+</RelativeLayout>

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">logicblox</string>
+    <string name="changes_saved">Saved</string>
+    <string name="save_btn">Save</string>
 </resources>
