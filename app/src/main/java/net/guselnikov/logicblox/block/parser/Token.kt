@@ -365,9 +365,18 @@ class Bool(val bool: Boolean) : Value() {
 
 class Word(val string: String) : Token()
 
+class Literal(val string: String): Token()
+
 data object LeftBracket : Token()
 data object RightBracket : Token()
 data object Assign : Token()
+data object BlockStart: Token()
+data object BlockEnd: Token()
+data object If: Token()
+data object Else: Token()
+data object Return: Token()
+data object NewLine: Token()
+data object Print: Token()
 
 private fun factorial(x: BigDecimal): BigDecimal {
     var res = BigDecimal.ONE

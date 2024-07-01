@@ -1,6 +1,5 @@
 package net.guselnikov.logicblox.block.parser
 
-
 import net.guselnikov.logicblox.block.Undefined
 import net.guselnikov.logicblox.block.ValueNumber
 import net.guselnikov.logicblox.block.ValueType
@@ -9,108 +8,15 @@ import java.util.Stack
 import kotlin.Exception
 import kotlin.text.StringBuilder
 
-val supportedOperators: List<Operator> = listOf(
+private val supportedOperators: List<Operator> = listOf(
     Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
 )
-val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
+private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
 private fun String.startsWithOneOf(vararg substring: String): String? {
     substring.forEach {
         if (startsWith(prefix = it, ignoreCase = true)) return it
     }
-    return null
-}
-
-data class ConditionalFormula(
-    val condition: String,
-    val trueStatementFormula: String,
-    val falseStatementFormula: String
-)
-
-enum class ReadingMode {
-    INIT,
-    IF_SKIPPED,
-    CONDITION,
-    TRUE_STATEMENT,
-    TRUE_STATEMENT_COMPLETED,
-    ELSE_SKIPPED,
-    FALSE_STATEMENT,
-    COMPLETED
-}
-
-private fun breakConditionalFormula(formula: String): ConditionalFormula? {
-    val conditionStringBuilder = StringBuilder()
-    val trueStatementStringBuilder = StringBuilder()
-    val falseStatementStringBuilder = StringBuilder()
-
-    var mode: ReadingMode = ReadingMode.INIT
-    var skipChars = 0
-    formula.forEachIndexed { index, char ->
-        if (skipChars > 0) {
-            skipChars--
-            return@forEachIndexed
-        }
-
-        when (mode) {
-            ReadingMode.INIT -> {
-                if (formula.slice(index..formula.lastIndex).startsWith("if")) {
-                    mode = ReadingMode.IF_SKIPPED
-                    skipChars = 1
-                }
-            }
-
-            ReadingMode.IF_SKIPPED -> {
-                if (char == '(') {
-                    mode = ReadingMode.CONDITION
-                    conditionStringBuilder.append(char)
-                }
-            }
-
-            ReadingMode.CONDITION -> {
-                when (char) {
-                    '{' -> mode = ReadingMode.TRUE_STATEMENT
-                    else -> conditionStringBuilder.append(char)
-                }
-            }
-
-            ReadingMode.TRUE_STATEMENT -> {
-                when (char) {
-                    '}' -> mode = ReadingMode.TRUE_STATEMENT_COMPLETED
-                    else -> trueStatementStringBuilder.append(char)
-                }
-            }
-
-            ReadingMode.TRUE_STATEMENT_COMPLETED -> {
-                if (formula.slice(index..formula.lastIndex).startsWith("else")) {
-                    mode = ReadingMode.ELSE_SKIPPED
-                    skipChars = 3
-                }
-            }
-
-            ReadingMode.ELSE_SKIPPED -> {
-                if (char == '{') mode = ReadingMode.FALSE_STATEMENT
-            }
-
-            ReadingMode.FALSE_STATEMENT -> {
-                when (char) {
-                    '}' -> mode = ReadingMode.COMPLETED
-                    else -> falseStatementStringBuilder.append(char)
-                }
-            }
-
-            ReadingMode.COMPLETED -> return@forEachIndexed
-        }
-    }
-
-    val conditionStr = conditionStringBuilder.toString()
-    val trueStatementFormula = trueStatementStringBuilder.toString()
-    val falseStatementFormula = falseStatementStringBuilder.toString()
-
-    if (conditionStr.isNotBlank() && trueStatementFormula.isNotBlank()) return ConditionalFormula(
-        conditionStr,
-        trueStatementFormula,
-        falseStatementFormula
-    )
     return null
 }
 
@@ -147,7 +53,7 @@ private fun parse(formula: String): List<Token> {
 
     var symbolsToSkip = 0
 
-    formula.forEachIndexed { index, it ->
+    formula.forEachIndexed { index, symbol ->
         if (symbolsToSkip > 0) {
             symbolsToSkip--
             return@forEachIndexed
@@ -164,22 +70,22 @@ private fun parse(formula: String): List<Token> {
                 val lastToken = tokens.lastOrNull()
                 val currentOperator = operatorStr.toOperator()
                 when {
-                    it == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket) -> tokens.add(UnaryMinus)
+                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket) -> tokens.add(UnaryMinus)
                     currentOperator != null -> tokens.add(currentOperator)
                 }
             }
 
-            it == '(' -> {
+            symbol == '(' -> {
                 stopReadings()
                 tokens.add(LeftBracket)
             }
 
-            it == ')' -> {
+            symbol == ')' -> {
                 stopReadings()
                 tokens.add(RightBracket)
             }
 
-            it == '=' -> {
+            symbol == '=' -> {
                 val variableName = currentWord.toString()
                 if (tokens.isNotEmpty() || readingNumber || !readingWord || variableName.isBlank()) return listOf()
                 writeWord()
@@ -189,23 +95,23 @@ private fun parse(formula: String): List<Token> {
                 currentWord.clear()
             }
 
-            it == '.' -> {
+            symbol == '.' -> {
                 if (!readingNumber) return listOf()
-                currentNumber.append(it)
+                currentNumber.append(symbol)
             }
 
-            it.isDigit() -> {
-                if (readingWord) currentWord.append(it)
+            symbol.isDigit() -> {
+                if (readingWord) currentWord.append(symbol)
                 else {
                     readingNumber = true
-                    currentNumber.append(it)
+                    currentNumber.append(symbol)
                 }
             }
 
-            it.isLetter() -> {
+            symbol.isLetter() -> {
                 if (readingNumber) return listOf()
                 readingWord = true
-                currentWord.append(it)
+                currentWord.append(symbol)
             }
         }
     }
@@ -279,7 +185,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                 }
             }
 
-            Assign -> Unit
+            else -> Unit
         }
     }
 
@@ -344,7 +250,7 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
 }
 
 @Suppress("Unused")
-private fun printTokens(tokens: List<Token>): String {
+fun printTokens(tokens: List<Token>): String {
     val builder = StringBuilder()
     tokens.forEach {
         when (it) {
@@ -354,9 +260,17 @@ private fun printTokens(tokens: List<Token>): String {
             LeftBracket -> builder.append('(')
             RightBracket -> builder.append(')')
             Assign -> builder.append('=')
+            BlockStart -> builder.append('{')
+            BlockEnd -> builder.append('}')
+            Else -> builder.append("else")
+            If -> builder.append("if")
+            Return -> builder.append("return")
+            NewLine -> builder.append("\n")
+            is Literal -> builder.append('\"', it.string, '\"')
+            Print -> builder.append("print")
         }
 
-        builder.append(" ")
+        if (it != NewLine) builder.append(" ")
     }
 
     return builder.toString()
@@ -364,20 +278,7 @@ private fun printTokens(tokens: List<Token>): String {
 
 fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
     try {
-        var formulaToCalculate: String = formula
-        val conditionalFormula = breakConditionalFormula(formula)
-        if (conditionalFormula != null) {
-            // Calculate condition
-            val conditionTokens = parse(conditionalFormula.condition)
-            val sortedConditionTokens = sortTokens(conditionTokens)
-            val conditionResult = calculateTokens(sortedConditionTokens, params)
-            if (conditionResult is ValueNumber) {
-                formulaToCalculate =
-                    if (conditionResult.toBoolean()) conditionalFormula.trueStatementFormula else conditionalFormula.falseStatementFormula
-            }
-        }
-
-        var tokens = parse(formulaToCalculate)
+        var tokens = parse(formula)
         val variableName: String? =
             if (tokens.getOrNull(1) == Assign) {
                 val name = (tokens[0] as Word).string

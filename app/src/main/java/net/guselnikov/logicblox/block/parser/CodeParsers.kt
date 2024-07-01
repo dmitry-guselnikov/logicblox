@@ -1,26 +1,24 @@
 package net.guselnikov.logicblox.block.parser
 
+import java.math.BigDecimal
+
+private val supportedOperators: List<Operator> = listOf(
+    Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+)
+private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
+
+private fun String.startsWithOneOf(vararg substring: String): String? {
+    substring.forEach {
+        if (startsWith(prefix = it, ignoreCase = true)) return it
+    }
+    return null
+}
 
 /**
- * Нужно создать активити, которая будет навигировать в EditCode или в EditBlock
- *
  * А вот только затем заниматься парсингом кода
  * Сделать автоматическую подстановку нужного количества пробелов в зависимости от вложенности
  */
-sealed class ExpressionToken
-//data object LeftBracket: ExpressionToken()
-//data object RightBracket: ExpressionToken()
-//data object LeftCurlyBrace: ExpressionToken()
-//data object RightCurlyBrace: ExpressionToken()
-//data object EndOfLine: ExpressionToken()
 
-sealed class Expression
-class FormulaExpression(tokens: List<ExpressionToken>) : Expression()
-class ConditionExpression(
-    condition: List<ExpressionToken>,
-    onTrueBlock: List<Expression>,
-    onFalseBlock: List<Expression>
-) : Expression()
 
 /**
  * Общие мысли: если встретили символы '//', то игнорируем всё до конца строки
@@ -33,10 +31,185 @@ class ConditionExpression(
  * 6. Если есть else, то считываем FALSE-блок
  * 6. На вход методу parseBlock подаётся подстрока после условия или после слова else
  */
-fun parseCode(code: String): List<Expression> {
-    code.split("\n")
+fun parseCode(code: String): BlockGroup {
+    val expressions = arrayListOf<TokenGroup>()
 
-    TODO()
+
+    return BlockGroup(expressions)
+}
+
+fun tokens(code: String): List<Token> {
+    val tokens = arrayListOf<Token>()
+    var readingNumber = false
+    var readingWord = false
+    var readingLiteral = false
+    val currentNumber = StringBuilder()
+    val currentWord = StringBuilder()
+    val currentLiteral = StringBuilder()
+
+    fun writeWord() {
+        readingWord = false
+        when (val word = currentWord.toString()) {
+            "π" -> tokens.add(Number(BigDecimal("3.1415926535897932384626433832795")))
+            "true" -> tokens.add(Bool(true))
+            "false" -> tokens.add(Bool(false))
+            else -> tokens.add(Word(word))
+        }
+        currentWord.clear()
+    }
+
+    fun writeLiteral() {
+        readingLiteral = false
+        tokens.add(Literal(currentLiteral.toString()))
+        currentLiteral.clear()
+    }
+
+    fun stopReadings() {
+        if (readingWord) {
+            writeWord()
+        }
+
+        if (readingNumber) {
+            readingNumber = false
+            tokens.add(Number(BigDecimal(currentNumber.toString())))
+            currentNumber.clear()
+        }
+    }
+
+    var symbolsToSkip = 0
+    var skipCurrentLine = false
+
+    code.forEachIndexed { index, symbol ->
+        if (symbol == '\n') {
+            skipCurrentLine = false
+        }
+
+        if (skipCurrentLine) {
+            return@forEachIndexed
+        }
+
+        if (symbolsToSkip > 0) {
+            symbolsToSkip--
+            return@forEachIndexed
+        }
+
+        val slice = code.slice(index..code.lastIndex)
+        val isComment = slice.startsWith("//")
+        val isPostScriptum = slice.startsWith("P.S.")
+        if (isPostScriptum) return tokens
+
+        if (isComment) {
+            skipCurrentLine = true
+            return@forEachIndexed
+        }
+
+        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "print")
+        val operatorStr: String? = slice.startsWithOneOf(*operationStrings)
+
+        when {
+            symbol == '\"' && readingLiteral -> {
+                writeLiteral()
+            }
+
+            symbol == '\"' && !readingLiteral -> {
+                stopReadings()
+                readingLiteral = true
+            }
+
+            readingLiteral -> {
+                currentLiteral.append(symbol)
+            }
+
+            tokenStr != null -> {
+                symbolsToSkip = tokenStr.length - 1
+                stopReadings()
+
+                when (tokenStr) {
+                    "if" -> tokens.add(If)
+                    "else" -> tokens.add(Else)
+                    "return" -> tokens.add(Return)
+                    "print" -> tokens.add(Print)
+                }
+            }
+
+            operatorStr != null -> {
+                symbolsToSkip = operatorStr.length - 1
+
+                stopReadings()
+
+                val lastToken = tokens.lastOrNull()
+                val currentOperator = operatorStr.toOperator()
+                when {
+                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket || lastToken == Assign) -> tokens.add(UnaryMinus)
+                    currentOperator != null -> tokens.add(currentOperator)
+                }
+            }
+
+            symbol == '\n' -> {
+                stopReadings()
+                tokens.add(NewLine)
+            }
+
+            symbol == '(' -> {
+                stopReadings()
+                tokens.add(LeftBracket)
+            }
+
+            symbol == ')' -> {
+                stopReadings()
+                tokens.add(RightBracket)
+            }
+
+            symbol == '{' -> {
+                stopReadings()
+                tokens.add(BlockStart)
+            }
+
+            symbol == '}' -> {
+                stopReadings()
+                tokens.add(BlockEnd)
+            }
+
+            symbol == '=' -> {
+                val variableName = currentWord.toString()
+                if (readingNumber || !readingWord || variableName.isBlank()) return listOf()
+                writeWord()
+                tokens.add(Assign)
+
+                readingWord = false
+                currentWord.clear()
+            }
+
+            symbol == '.' -> {
+                if (!readingNumber) return listOf()
+                currentNumber.append(symbol)
+            }
+
+            symbol.isDigit() -> {
+                if (readingWord) currentWord.append(symbol)
+                else {
+                    readingNumber = true
+                    currentNumber.append(symbol)
+                }
+            }
+
+            symbol.isLetter() -> {
+                if (readingNumber) return listOf()
+                readingWord = true
+                currentWord.append(symbol)
+            }
+        }
+    }
+
+    if (readingWord) {
+        writeWord()
+    }
+
+    if (readingNumber) {
+        tokens.add(Number(BigDecimal(currentNumber.toString())))
+    }
+
+    return tokens
 }
 
 /**
@@ -61,7 +234,7 @@ fun parseCode(code: String): List<Expression> {
  *
  * Примерный алгоритм чтения блока без фигурной скобки:
  */
-fun parseBlock(code: String): List<Expression> {
+fun parseBlock(code: String): BlockGroup {
     TODO()
 }
 
@@ -80,6 +253,6 @@ fun parseBlock(code: String): List<Expression> {
  *     stringBuilder.append(char)
  * }
  */
-fun parseCondition(code: String): FormulaExpression {
+fun parseCondition(code: String): FormulaGroup {
     TODO()
 }
