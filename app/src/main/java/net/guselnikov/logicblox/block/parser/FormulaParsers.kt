@@ -2,31 +2,17 @@ package net.guselnikov.logicblox.block.parser
 
 
 import net.guselnikov.logicblox.block.Undefined
-import net.guselnikov.logicblox.block.ValueBoolean
-import net.guselnikov.logicblox.block.ValueDecimal
 import net.guselnikov.logicblox.block.ValueNumber
 import net.guselnikov.logicblox.block.ValueType
-import net.guselnikov.logicblox.util.cosBigDecimal
-import net.guselnikov.logicblox.util.lgBigDecimal
-import net.guselnikov.logicblox.util.lnBigDecimal
-import net.guselnikov.logicblox.util.pow
-import net.guselnikov.logicblox.util.roundToInt
-import net.guselnikov.logicblox.util.sinBigDecimal
-import net.guselnikov.logicblox.util.tanBigDecimal
 import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
 import java.util.Stack
 import kotlin.Exception
 import kotlin.text.StringBuilder
 
-private fun <T> T.oneOf(vararg candidates: T): Boolean {
-    candidates.forEach {
-        if (it == this) return true
-    }
-
-    return false
-}
+val supportedOperators: List<Operator> = listOf(
+    Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+)
+val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
 private fun String.startsWithOneOf(vararg substring: String): String? {
     substring.forEach {
@@ -34,94 +20,6 @@ private fun String.startsWithOneOf(vararg substring: String): String? {
     }
     return null
 }
-
-// TODO: Добавить операции со строками
-// TODO: Добавить опеации с массивами
-enum class OperatorType {
-    PLUS,
-    MINUS,
-    LESS,
-    LESS_OR_EQUAL,
-    GREATER,
-    GREATER_OR_EQUAL,
-    MULT,
-    DIV,
-    POW,
-    MOD,
-    UNARY_MINUS,
-    SQRT,
-    ABS,
-    SIN,
-    COS,
-    TAN,
-    LN,
-    LG,
-    INT,
-    EQUALS,
-    NOT_EQUALS,
-    OR,
-    AND,
-    FACTORIAL,
-    DEGREES,
-    RAND,
-    ASSIGN
-}
-
-sealed class Token
-class Operator(val operation: OperatorType) : Token() {
-
-    val isRightHand: Boolean
-        get() = when (operation) {
-            OperatorType.FACTORIAL, OperatorType.DEGREES -> true
-            else -> false
-        }
-
-    val precedence: Int
-        get() = when (operation) {
-            OperatorType.OR, OperatorType.AND -> 0
-            OperatorType.LESS, OperatorType.LESS_OR_EQUAL, OperatorType.GREATER, OperatorType.GREATER_OR_EQUAL, OperatorType.EQUALS, OperatorType.NOT_EQUALS -> 1
-            OperatorType.MOD, OperatorType.PLUS, OperatorType.MINUS -> 2
-            OperatorType.MULT, OperatorType.DIV -> 3
-            OperatorType.POW -> 4
-            OperatorType.ABS, OperatorType.UNARY_MINUS, OperatorType.SQRT, OperatorType.SIN, OperatorType.COS, OperatorType.TAN, OperatorType.LN, OperatorType.LG, OperatorType.INT -> 5
-            OperatorType.FACTORIAL, OperatorType.DEGREES -> 6
-            OperatorType.RAND -> 7
-            else -> -1
-        }
-
-    val argumentsNumber: Int
-        get() = when (operation) {
-            OperatorType.OR, OperatorType.AND, OperatorType.LESS, OperatorType.LESS_OR_EQUAL, OperatorType.EQUALS, OperatorType.NOT_EQUALS, OperatorType.GREATER, OperatorType.GREATER_OR_EQUAL, OperatorType.PLUS, OperatorType.MINUS, OperatorType.MOD, OperatorType.MULT, OperatorType.DIV, OperatorType.POW -> 2
-            OperatorType.RAND -> 0
-            else -> 1
-        }
-}
-
-sealed class Value : Token() {
-    abstract fun toValueNumber(): ValueNumber
-    abstract fun toDecimal(): BigDecimal
-    abstract fun toDouble(): Double
-    abstract fun toBoolean(): Boolean
-}
-
-class Number(val decimal: BigDecimal) : Value() {
-    override fun toValueNumber() = ValueDecimal(decimal)
-    override fun toDecimal(): BigDecimal = decimal
-    override fun toDouble(): Double = decimal.toDouble()
-    override fun toBoolean(): Boolean = decimal != BigDecimal.ZERO
-}
-
-class Bool(val bool: Boolean) : Value() {
-    override fun toValueNumber(): ValueNumber = ValueBoolean(bool)
-    override fun toDecimal(): BigDecimal = if (bool) BigDecimal.ONE else BigDecimal.ZERO
-    override fun toDouble(): Double = if (bool) 1.0 else 0.0
-    override fun toBoolean(): Boolean = bool
-}
-
-class Word(val string: String) : Token()
-
-object LeftBracket : Token()
-object RightBracket : Token()
 
 data class ConditionalFormula(
     val condition: String,
@@ -255,43 +153,7 @@ private fun parse(formula: String): List<Token> {
             return@forEachIndexed
         }
 
-        val operatorStr: String? = formula.slice(index..formula.lastIndex).startsWithOneOf(
-            "√",
-            "+",
-            "-",
-            "**",
-            "*",
-            "/",
-            "^",
-            "<",
-            "<=",
-            "≤",
-            ">",
-            ">=",
-            "≥",
-            "==",
-            "!=",
-            "≠",
-            "!",
-            "||",
-            "&&",
-            "°",
-            "•",
-            "×",
-            "÷",
-            ":",
-            "%",
-            "mod",
-            "abs",
-            "sin",
-            "cos",
-            "tg",
-            "tan",
-            "ln",
-            "lg",
-            "int",
-            "rand"
-        )
+        val operatorStr: String? = formula.slice(index..formula.lastIndex).startsWithOneOf(*operationStrings)
 
         when {
             operatorStr != null -> {
@@ -299,16 +161,11 @@ private fun parse(formula: String): List<Token> {
 
                 stopReadings()
 
-                val lastOperator = tokens.lastOrNull()
-                val currentOperator = operatorStr.toOperatorType()
+                val lastToken = tokens.lastOrNull()
+                val currentOperator = operatorStr.toOperator()
                 when {
-                    it == '-' && (tokens.isEmpty() || (lastOperator is Operator)) -> tokens.add(
-                        Operator(OperatorType.UNARY_MINUS)
-                    )
-
-                    else -> currentOperator?.let { operation ->
-                        tokens.add(Operator(operation))
-                    }
+                    it == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket) -> tokens.add(UnaryMinus)
+                    currentOperator != null -> tokens.add(currentOperator)
                 }
             }
 
@@ -326,7 +183,7 @@ private fun parse(formula: String): List<Token> {
                 val variableName = currentWord.toString()
                 if (tokens.isNotEmpty() || readingNumber || !readingWord || variableName.isBlank()) return listOf()
                 writeWord()
-                tokens.add(Operator(OperatorType.ASSIGN))
+                tokens.add(Assign)
 
                 readingWord = false
                 currentWord.clear()
@@ -364,34 +221,17 @@ private fun parse(formula: String): List<Token> {
     return tokens
 }
 
-/*
- * 1.  While there are tokens to be read:
- * 2.        Read a token
- * 3.        If it's a number add it to queue
- * 4.        If it's an operator
- * 5.               While there's an operator on the top of the stack with greater (OR EQUAL?!) precedence:
- * 6.                       Pop operators from the stack onto the output queue
- * 7.               Push the current operator onto the stack
- * 8.        If it's a left bracket push it onto the stack
- * 9.        If it's a right bracket
- * 10.            While there's not a left bracket at the top of the stack:
- * 11.                     Pop operators from the stack onto the output queue.
- * 12.             Pop the left bracket from the stack and discard it
- * 13. While there are operators on the stack, pop them to the queue
- *
- * TODO: Добавить проверку на валидность
- */
 private fun sortTokens(tokens: List<Token>): List<Token> {
     val outputQueue = arrayListOf<Token>()
     val operatorsStack = Stack<Token>()
     tokens.forEach { token ->
-        when {
-            token is Value || token is Word -> outputQueue.add(token)
-            token is LeftBracket -> {
+        when (token) {
+            is Value, is Word -> outputQueue.add(token)
+            is LeftBracket -> {
                 operatorsStack.push(token)
             }
 
-            token is RightBracket -> {
+            is RightBracket -> {
                 var leftBracketToPop = false
                 while (!leftBracketToPop) {
                     val topStackOperator = try {
@@ -414,7 +254,7 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                 }
             }
 
-            token is Operator -> {
+            is Operator -> {
                 var thereIsHigherPrecedence = true
                 while (thereIsHigherPrecedence) {
                     val topStackOperator = try {
@@ -438,6 +278,8 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
                     operatorsStack.push(token)
                 }
             }
+
+            Assign -> Unit
         }
     }
 
@@ -464,8 +306,6 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
         }
     )
 
-
-
     while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
         val indexOfOperator = transformedTokens.indexOfFirst {
             it is Operator
@@ -479,7 +319,7 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
             2 -> {
                 val lhs = transformedTokens[indexOfOperator - 2] as Value
                 val rhs = transformedTokens[indexOfOperator - 1] as Value
-                val newValue = calculate(operator, lhs, rhs)
+                val newValue = operator.calculate(lhs, rhs)
                 transformedTokens.add(indexOfOperator - 2, newValue)
                 transformedTokens.remove(lhs)
                 transformedTokens.remove(rhs)
@@ -487,13 +327,13 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
 
             1 -> {
                 val value = transformedTokens[indexOfOperator - 1] as Value
-                val newValue = calculate(operator, value)
+                val newValue = operator.calculate(value)
                 transformedTokens.add(indexOfOperator - 1, newValue)
                 transformedTokens.remove(value)
             }
 
             0 -> {
-                transformedTokens.add(indexOfOperator, calculate(operator))
+                transformedTokens.add(indexOfOperator, operator.calculate())
             }
         }
 
@@ -503,79 +343,23 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
     return (transformedTokens.getOrNull(0) as? Value)?.toValueNumber() ?: Undefined
 }
 
-private fun calculate(operator: Operator, vararg args: Value): Value {
-    val lhs = args.getOrNull(0) ?: Bool(false)
-    val rhs = args.getOrNull(1) ?: Bool(false)
-
-    val mc = MathContext(14, RoundingMode.HALF_UP)
-
-    return when (operator.operation) {
-        OperatorType.PLUS -> Number(lhs.toDecimal() + rhs.toDecimal())
-        OperatorType.MINUS -> Number(lhs.toDecimal() - rhs.toDecimal())
-        OperatorType.MULT -> Number(lhs.toDecimal() * rhs.toDecimal())
-        OperatorType.DIV -> try {
-            Number(BigDecimal(lhs.toDouble() / rhs.toDouble(), mc))
-        } catch (e: Exception) {
-            Bool(false)
-        }
-
-        OperatorType.MOD -> Number(lhs.toDecimal() % rhs.toDecimal())
-        OperatorType.POW -> Number(pow(lhs.toDecimal(), rhs.toDecimal()))
-        OperatorType.LESS -> Bool(lhs.toDecimal() < rhs.toDecimal())
-        OperatorType.LESS_OR_EQUAL -> Bool(lhs.toDecimal() <= rhs.toDecimal())
-        OperatorType.EQUALS -> Bool(lhs.toDecimal() == rhs.toDecimal())
-        OperatorType.NOT_EQUALS -> Bool(lhs.toDecimal() != rhs.toDecimal())
-        OperatorType.OR -> Bool(lhs.toBoolean() || rhs.toBoolean())
-        OperatorType.AND -> Bool(lhs.toBoolean() && rhs.toBoolean())
-        OperatorType.GREATER -> Bool(lhs.toDecimal() > rhs.toDecimal())
-        OperatorType.GREATER_OR_EQUAL -> Bool(lhs.toDecimal() >= rhs.toDecimal())
-        OperatorType.SQRT -> Number(pow(lhs.toDecimal(), BigDecimal("0.5")))
-        OperatorType.UNARY_MINUS -> Number(lhs.toDecimal().multiply(BigDecimal(-1)))
-        OperatorType.ABS -> Number(lhs.toDecimal().abs())
-        OperatorType.SIN -> Number(sinBigDecimal(lhs.toDecimal()))
-        OperatorType.COS -> Number(cosBigDecimal(lhs.toDecimal()))
-        OperatorType.TAN -> Number(tanBigDecimal(lhs.toDecimal()))
-        OperatorType.LN -> Number(lnBigDecimal(lhs.toDecimal()))
-        OperatorType.LG -> Number(lgBigDecimal(lhs.toDecimal()))
-        OperatorType.INT -> Number(roundToInt(lhs.toDecimal()))
-        OperatorType.FACTORIAL -> Number(factorial(lhs.toDecimal()))
-        OperatorType.DEGREES -> Number(
-            BigDecimal(
-                (lhs.toDecimal() * BigDecimal("3.1415926535897932384626433832795")).toDouble() / 180.0,
-                MathContext.DECIMAL128
-            )
-        )
-
-        OperatorType.RAND -> Number(BigDecimal(Math.random()))
-        else -> Bool(false)
-    }
-}
-
 @Suppress("Unused")
 private fun printTokens(tokens: List<Token>): String {
     val builder = StringBuilder()
     tokens.forEach {
         when (it) {
-            is Operator -> builder.append(it.operation.name)
+            is Operator -> builder.append(it.symbols.firstOrNull() ?: "?")
             is Value -> builder.append(it.toDouble())
             is Word -> builder.append(it.string)
             LeftBracket -> builder.append('(')
             RightBracket -> builder.append(')')
+            Assign -> builder.append('=')
         }
 
         builder.append(" ")
     }
 
     return builder.toString()
-}
-
-fun factorial(x: BigDecimal): BigDecimal {
-    var res = BigDecimal.ONE
-    for (i in 2..x.toInt()) {
-        res *= BigDecimal(i)
-    }
-
-    return res
 }
 
 fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
@@ -595,7 +379,7 @@ fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<St
 
         var tokens = parse(formulaToCalculate)
         val variableName: String? =
-            if ((tokens.getOrNull(1) as? Operator)?.operation == OperatorType.ASSIGN) {
+            if (tokens.getOrNull(1) == Assign) {
                 val name = (tokens[0] as Word).string
                 tokens = tokens.subList(2, tokens.size)
                 name
@@ -607,41 +391,9 @@ fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<St
         Pair(null, Undefined)
     }
 
-fun String.toOperatorType(): OperatorType? = when (this.lowercase()) {
-    "√" -> OperatorType.SQRT
-    "+" -> OperatorType.PLUS
-    "-" -> OperatorType.MINUS
-    "*" -> OperatorType.MULT
-    "/" -> OperatorType.DIV
-    "^" -> OperatorType.POW
-    "<" -> OperatorType.LESS
-    "<=" -> OperatorType.LESS_OR_EQUAL
-    "≤" -> OperatorType.LESS_OR_EQUAL
-    ">" -> OperatorType.GREATER
-    ">=" -> OperatorType.GREATER_OR_EQUAL
-    "≥" -> OperatorType.GREATER_OR_EQUAL
-    "==" -> OperatorType.EQUALS
-    "!=" -> OperatorType.NOT_EQUALS
-    "≠" -> OperatorType.NOT_EQUALS
-    "!" -> OperatorType.FACTORIAL
-    "•" -> OperatorType.MULT
-    "×" -> OperatorType.MULT
-    "÷" -> OperatorType.DIV
-    ":" -> OperatorType.DIV
-    "°" -> OperatorType.DEGREES
-    "||" -> OperatorType.OR
-    "&&" -> OperatorType.AND
-    "%" -> OperatorType.MOD
-    "mod" -> OperatorType.MOD
-    "**" -> OperatorType.POW
-    "abs" -> OperatorType.ABS
-    "sin" -> OperatorType.SIN
-    "cos" -> OperatorType.COS
-    "tg" -> OperatorType.TAN
-    "tan" -> OperatorType.TAN
-    "ln" -> OperatorType.LN
-    "lg" -> OperatorType.LG
-    "int" -> OperatorType.INT
-    "rand" -> OperatorType.RAND
-    else -> null
+fun String.toOperator(): Operator? {
+    supportedOperators.forEach {
+        if (it.symbols.contains(lowercase())) return it
+    }
+    return null
 }

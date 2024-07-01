@@ -1,7 +1,9 @@
 package net.guselnikov.logicblox.presentation
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Button
 import net.guselnikov.logicblox.R
 
 /**
@@ -17,6 +19,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        findViewById<Button>(R.id.code).setOnClickListener {
+            startActivity(Intent(this, EditCodeActivity::class.java))
+        }
+
+        findViewById<Button>(R.id.block).setOnClickListener {
+            startActivity(Intent(this, EditBlockActivity::class.java))
+        }
     }
 
 //    private suspend fun solveQuadraticEquationWithFormula() {
