@@ -7,7 +7,7 @@ data class ConditionalFormula(
     val falseStatementFormula: String
 )
 
-enum class ReadingMode {
+private enum class ReadingMode {
     INIT,
     IF_SKIPPED,
     CONDITION,

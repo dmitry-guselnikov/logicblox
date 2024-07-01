@@ -13,6 +13,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doOnTextChanged
 import net.guselnikov.logicblox.R
+import net.guselnikov.logicblox.block.parser.lines
+import net.guselnikov.logicblox.block.parser.parseCode
 import net.guselnikov.logicblox.block.parser.printTokens
 import net.guselnikov.logicblox.block.parser.tokens
 
@@ -63,9 +65,8 @@ class EditCodeActivity : AppCompatActivity() {
         }
         runButton.setOnClickListener {
             val code = codeInput.text.toString()
-            val tokens = tokens(code)
-            val tokensStr = printTokens(tokens)
-            Log.d("Tokens", tokensStr)
+            val blockGroup = parseCode(code)
+            Log.d("Tokens", blockGroup.toString())
         }
     }
 
