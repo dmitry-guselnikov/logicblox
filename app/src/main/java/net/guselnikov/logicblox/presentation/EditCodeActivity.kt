@@ -13,10 +13,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doOnTextChanged
 import net.guselnikov.logicblox.R
-import net.guselnikov.logicblox.block.parser.lines
 import net.guselnikov.logicblox.block.parser.parseCode
-import net.guselnikov.logicblox.block.parser.printTokens
-import net.guselnikov.logicblox.block.parser.tokens
+import net.guselnikov.logicblox.block.runner.Console
+import net.guselnikov.logicblox.block.runner.runGroup
 
 class EditCodeActivity : AppCompatActivity() {
 
@@ -25,6 +24,8 @@ class EditCodeActivity : AppCompatActivity() {
     private lateinit var savedLabel: TextView
     private lateinit var saveButton: View
     private lateinit var runButton: View
+    private lateinit var consoleTV: TextView
+    private lateinit var console: Console
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +35,8 @@ class EditCodeActivity : AppCompatActivity() {
         savedLabel = findViewById(R.id.saved_label)
         saveButton = findViewById(R.id.btn_save)
         runButton = findViewById(R.id.btn_run)
+        consoleTV = findViewById(R.id.console)
+        console = TextViewConsole(consoleTV)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -66,7 +69,12 @@ class EditCodeActivity : AppCompatActivity() {
         runButton.setOnClickListener {
             val code = codeInput.text.toString()
             val blockGroup = parseCode(code)
-            Log.d("Tokens", blockGroup.toString())
+            consoleTV.isVisible = true
+            console.clear()
+            runGroup(blockGroup, mapOf(), console)
+            consoleTV.postDelayed({
+                consoleTV.isVisible = false
+            }, 15000L)
         }
     }
 

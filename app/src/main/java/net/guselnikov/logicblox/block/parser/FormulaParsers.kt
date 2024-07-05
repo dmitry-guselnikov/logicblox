@@ -1,7 +1,10 @@
 package net.guselnikov.logicblox.block.parser
 
 import net.guselnikov.logicblox.block.Undefined
+import net.guselnikov.logicblox.block.ValueBoolean
+import net.guselnikov.logicblox.block.ValueDecimal
 import net.guselnikov.logicblox.block.ValueNumber
+import net.guselnikov.logicblox.block.ValueText
 import net.guselnikov.logicblox.block.ValueType
 import java.math.BigDecimal
 import java.util.Stack
@@ -9,7 +12,7 @@ import kotlin.Exception
 import kotlin.text.StringBuilder
 
 private val supportedOperators: List<Operator> = listOf(
-    Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+    Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
 )
 private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
@@ -127,7 +130,7 @@ private fun parse(formula: String): List<Token> {
     return tokens
 }
 
-private fun sortTokens(tokens: List<Token>): List<Token> {
+fun sortTokens(tokens: List<Token>): List<Token> {
     val outputQueue = arrayListOf<Token>()
     val operatorsStack = Stack<Token>()
     tokens.forEach { token ->
@@ -196,15 +199,20 @@ private fun sortTokens(tokens: List<Token>): List<Token> {
     return outputQueue
 }
 
-fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): ValueType {
+fun calculateTokens(tokens: List<Token>, params: Map<String, ValueType>): ValueType {
     // 1. Заменить words и numbers на ValueReal
     val transformedTokens = arrayListOf<Token>()
     transformedTokens.addAll(
         tokens.map { token ->
             when {
                 token is Word -> {
-                    val decimal = params[token.string]?.toBigDecimal() ?: return Undefined
-                    Number(decimal)
+                    val param = params[token.string] ?: Undefined
+                    when (param) {
+                        is ValueBoolean -> Bool(param.bool)
+                        is ValueDecimal -> Number(param.decimal)
+                        is ValueText -> Literal(param.text)
+                        Undefined -> Literal("undefined")
+                    }
                 }
 
                 else -> token
@@ -217,9 +225,7 @@ fun calculateTokens(tokens: List<Token>, params: Map<String, ValueNumber>): Valu
             it is Operator
         }
         val operator = transformedTokens[indexOfOperator] as Operator
-        if (indexOfOperator < operator.argumentsNumber) return Undefined // [-1] Not found, [0],[1] must be numbers
-        // Это справедливо только для бинарных операторов, нужно сделать поддержку унарных
-        // типа квадратного корня, синуса, косинуса, тангенса
+        if (indexOfOperator < operator.argumentsNumber) return Undefined // For binary [-1] Not found, [0],[1] must be numbers
 
         when (operator.argumentsNumber) {
             2 -> {
@@ -255,7 +261,9 @@ fun printTokens(tokens: List<Token>): String {
     tokens.forEach {
         when (it) {
             is Operator -> builder.append(it.symbols.firstOrNull() ?: "?")
-            is Value -> builder.append(it.toDouble())
+            is Number -> builder.append(it.toDouble())
+            is Bool -> builder.append(if (it.toBoolean()) "true" else "false")
+            is Literal -> builder.append('\"', it.string, '\"')
             is Word -> builder.append(it.string)
             LeftBracket -> builder.append('(')
             RightBracket -> builder.append(')')
@@ -266,8 +274,6 @@ fun printTokens(tokens: List<Token>): String {
             If -> builder.append("if")
             Return -> builder.append("return")
             NewLine -> builder.append("\n")
-            is Literal -> builder.append('\"', it.string, '\"')
-            Print -> builder.append("print")
         }
 
         if (it != NewLine) builder.append(" ")

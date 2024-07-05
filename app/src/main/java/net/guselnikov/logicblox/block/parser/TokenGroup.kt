@@ -9,10 +9,12 @@ sealed class TokenGroup {
 class FormulaGroup(val tokens: List<Token>): TokenGroup() {
     override fun isEmpty(): Boolean = tokens.isEmpty()
 }
+
 class BlockGroup(val expressions: List<TokenGroup>): TokenGroup() {
     override fun isEmpty(): Boolean = expressions.isEmpty()
 }
-class EmptyGroup(): TokenGroup() {
+
+data object EmptyGroup : TokenGroup() {
     override fun isEmpty(): Boolean = true
 }
 

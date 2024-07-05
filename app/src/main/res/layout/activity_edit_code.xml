@@ -64,4 +64,17 @@
         android:padding="8dp"
         android:inputType="textFilter|textMultiLine|textNoSuggestions" />
 
+    <TextView
+        android:id="@+id/console"
+        android:visibility="gone"
+        tools:visibility="visible"
+        tools:text="x = 20"
+        android:textColor="@color/white"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="256dp"
+        android:background="@color/black"
+        android:fontFamily="@font/firacode" />
+
 </RelativeLayout>
