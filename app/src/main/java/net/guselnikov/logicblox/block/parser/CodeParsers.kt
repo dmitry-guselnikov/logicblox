@@ -3,7 +3,31 @@ package net.guselnikov.logicblox.block.parser
 import java.math.BigDecimal
 
 private val supportedOperators: List<Operator> = listOf(
-    Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+    Println,
+    Print,
+    Or,
+    And,
+    Plus,
+    Minus,
+    Div,
+    Mult,
+    Sqrt,
+    Pow,
+    LessOrEqual,
+    GreaterOrEqual,
+    Less,
+    Greater,
+    Equals,
+    NotEquals,
+    Mod,
+    Sin,
+    Cos,
+    Tan,
+    Abs,
+    Ln,
+    Lg,
+    ToInt,
+    Rand
 )
 private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
@@ -44,11 +68,15 @@ class GroupChunk(
 fun readChunk(tokens: List<Token>, startIndex: Int): GroupChunk {
     var chunkStartIndex = startIndex
     while (tokens.getOrNull(chunkStartIndex) == NewLine) {
-        chunkStartIndex ++
+        chunkStartIndex++
     }
 
     if (tokens.getOrNull(chunkStartIndex) == If) {
         return readCondition(tokens, chunkStartIndex)
+    }
+
+    if (tokens.getOrNull(chunkStartIndex) == While) {
+        return readWhileLoop(tokens, chunkStartIndex)
     }
 
     return readFormula(tokens, chunkStartIndex)
@@ -58,7 +86,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
     val formulaTokens = arrayListOf<Token>()
     var nextTokenIndex = startIndex
 
-    run breaking@ {
+    run breaking@{
         tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
             nextTokenIndex = startIndex + index
             when (token) {
@@ -66,7 +94,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
                     formulaTokens.add(token)
                 }
 
-                is If, is Else, is BlockStart, is BlockEnd -> {
+                is While, If, is Else, is BlockStart, is BlockEnd -> {
                     return@breaking
                 }
 
@@ -114,12 +142,15 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
             ConditionReadingMode.INIT -> {
                 if (token == If) mode = ConditionReadingMode.CONDITION
             }
+
             ConditionReadingMode.CONDITION -> {
+                // TODO: Сделать скобки необязательными!
                 if (token == LeftBracket) conditionNesting++
                 if (token == RightBracket) conditionNesting--
                 conditionTokens.add(token)
                 if (conditionNesting == 0) mode = ConditionReadingMode.TRUE_STATEMENT
             }
+
             ConditionReadingMode.TRUE_STATEMENT -> {
                 if (token == BlockStart) mode = ConditionReadingMode.TRUE_STATEMENT_BLOCK_STARTED
                 else {
@@ -134,8 +165,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 if (token == BlockEnd) {
                     trueStatementGroup = BlockGroup(trueStatementExpressions)
                     mode = ConditionReadingMode.TRUE_STATEMENT_BLOCK_COMPLETED
-                }
-                else {
+                } else {
                     val trueStatementChunk = readChunk(tokens, nextTokenIndex)
                     trueStatementExpressions.add(trueStatementChunk.group)
                     skipToIndex = trueStatementChunk.lastUsedTokenIndex
@@ -175,13 +205,13 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 if (token == BlockEnd) {
                     falseStatementGroup = BlockGroup(falseStatementExpressions)
                     mode = ConditionReadingMode.COMPLETED
-                }
-                else {
+                } else {
                     val falseStatementChunk = readChunk(tokens, nextTokenIndex)
                     falseStatementExpressions.add(falseStatementChunk.group)
                     skipToIndex = falseStatementChunk.lastUsedTokenIndex
                 }
             }
+
             ConditionReadingMode.COMPLETED -> {
                 return GroupChunk(
                     ConditionGroup(
@@ -202,6 +232,86 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
             onFalseBlock = falseStatementGroup
         ),
         nextTokenIndex
+    )
+}
+
+private enum class WhileLoopReadingMode {
+    INIT,
+    CONDITION,
+    STATEMENT,
+    STATEMENT_BLOCK_STARTED,
+    COMPLETED
+}
+
+fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
+    var mode = WhileLoopReadingMode.INIT
+    val conditionTokens = arrayListOf<Token>()
+    var conditionNesting = 0
+    var nextTokenIndex = startIndex
+    var statementGroup = BlockGroup(listOf())
+    var statementExpressions = arrayListOf<TokenGroup>()
+    var skipToIndex = 0
+
+    tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
+        nextTokenIndex = startIndex + index
+        if (nextTokenIndex < skipToIndex) {
+            return@forEachIndexed
+        }
+
+        when (mode) {
+
+            WhileLoopReadingMode.INIT -> {
+                if (token == While) mode = WhileLoopReadingMode.CONDITION
+            }
+
+            WhileLoopReadingMode.CONDITION -> {
+                if (token == LeftBracket) conditionNesting++
+                if (token == RightBracket) conditionNesting--
+                conditionTokens.add(token)
+                // TODO: Сделать скобки необязательными!
+                if (conditionNesting == 0) mode = WhileLoopReadingMode.STATEMENT
+            }
+
+            WhileLoopReadingMode.STATEMENT -> {
+                if (token == BlockStart) mode = WhileLoopReadingMode.STATEMENT_BLOCK_STARTED
+                else {
+                    val loopChunk = readChunk(tokens, nextTokenIndex)
+                    statementGroup = BlockGroup(listOf(loopChunk.group))
+                    skipToIndex = loopChunk.lastUsedTokenIndex
+                    mode = WhileLoopReadingMode.COMPLETED
+                }
+            }
+
+            WhileLoopReadingMode.STATEMENT_BLOCK_STARTED -> {
+                if (token == BlockEnd) {
+                    statementGroup = BlockGroup(statementExpressions)
+                    mode = WhileLoopReadingMode.COMPLETED
+                } else {
+                    val statementChunk = readChunk(tokens, nextTokenIndex)
+                    statementExpressions.add(statementChunk.group)
+                    skipToIndex = statementChunk.lastUsedTokenIndex
+                }
+            }
+
+            WhileLoopReadingMode.COMPLETED -> {
+                return GroupChunk(
+                    WhileLoopGroup(
+                        condition = FormulaGroup(conditionTokens),
+                        loopBlock = statementGroup
+                    ),
+                    nextTokenIndex - 1
+                )
+            }
+        }
+
+    }
+
+
+    return GroupChunk(
+        WhileLoopGroup(
+            condition = FormulaGroup(conditionTokens),
+            loopBlock = statementGroup
+        ), nextTokenIndex
     )
 }
 
@@ -270,7 +380,7 @@ fun tokens(code: String): List<Token> {
             return@forEachIndexed
         }
 
-        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return")
+        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "while")
         val operatorStr: String? = slice.startsWithOneOf(*operationStrings)
 
         when {
@@ -292,6 +402,7 @@ fun tokens(code: String): List<Token> {
                 stopReadings()
 
                 when (tokenStr) {
+                    "while" -> tokens.add(While)
                     "if" -> tokens.add(If)
                     "else" -> tokens.add(Else)
                     "return" -> tokens.add(Return)
@@ -306,7 +417,10 @@ fun tokens(code: String): List<Token> {
                 val lastToken = tokens.lastOrNull()
                 val currentOperator = operatorStr.toOperator()
                 when {
-                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket || lastToken == Assign) -> tokens.add(UnaryMinus)
+                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket || lastToken == Assign) -> tokens.add(
+                        UnaryMinus
+                    )
+
                     currentOperator != null -> tokens.add(currentOperator)
                 }
             }

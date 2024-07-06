@@ -272,6 +272,7 @@ fun printTokens(tokens: List<Token>): String {
             BlockEnd -> builder.append('}')
             Else -> builder.append("else")
             If -> builder.append("if")
+            While -> builder.append("while")
             Return -> builder.append("return")
             NewLine -> builder.append("\n")
         }

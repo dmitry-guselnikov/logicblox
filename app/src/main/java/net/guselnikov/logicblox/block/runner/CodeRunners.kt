@@ -21,6 +21,7 @@ import net.guselnikov.logicblox.block.parser.Return
 import net.guselnikov.logicblox.block.parser.Token
 import net.guselnikov.logicblox.block.parser.TokenGroup
 import net.guselnikov.logicblox.block.parser.Value
+import net.guselnikov.logicblox.block.parser.WhileLoopGroup
 import net.guselnikov.logicblox.block.parser.Word
 import net.guselnikov.logicblox.block.parser.printTokens
 import net.guselnikov.logicblox.block.parser.sortTokens
@@ -92,6 +93,34 @@ fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Co
                 runGroup(tokenGroup.onFalseBlock, params, console)
             }
         }
+
+        is WhileLoopGroup -> {
+            val condition = tokenGroup.condition
+            val loopParams: HashMap<String, ValueType> = hashMapOf()
+            params.forEach { (key, value) ->
+                loopParams[key] = value
+            }
+
+            while (true) {
+                val conditionResult = runFormula(condition.tokens, loopParams, console).variable.second
+                if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false)
+
+                if (conditionResult.toBoolean()) {
+                    val iterationResult = runGroup(tokenGroup.loopBlock, loopParams, console)
+                    iterationResult.variables.forEach { (key, value) ->
+                        loopParams[key] = value
+                    }
+
+                    if (iterationResult.shouldReturnFlag) {
+                        return GroupResults(loopParams, true)
+                    }
+                } else {
+                    break
+                }
+            }
+
+            GroupResults(loopParams, false)
+        }
     }
 }
 
@@ -115,11 +144,11 @@ fun runFormula(
             val sortedTokens = sortTokens(tokensToRun)
             val result = runFormulaTokens(sortedTokens, params, console)
 
-            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
-                console?.print(printTokens(tokens))
-                console?.print("= ")
-                console?.println(result.toText())
-            }
+//            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
+//                console?.print(printTokens(tokens))
+//                console?.print("= ")
+//                console?.println(result.toText())
+//            }
             FormulaResults(Pair(variableName, result), false)
         }
 

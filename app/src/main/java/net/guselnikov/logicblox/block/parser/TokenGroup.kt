@@ -26,6 +26,13 @@ class ConditionGroup(
     override fun isEmpty(): Boolean = condition.isEmpty()
 }
 
+class WhileLoopGroup(
+    val condition: FormulaGroup,
+    val loopBlock: BlockGroup
+): TokenGroup() {
+    override fun isEmpty(): Boolean = condition.isEmpty()
+}
+
 @Suppress("Unused")
 fun printGroup(tokenGroup: TokenGroup, nesting:Int = 0): String {
     val stringBuilder = StringBuilder()
@@ -57,6 +64,13 @@ fun printGroup(tokenGroup: TokenGroup, nesting:Int = 0): String {
             stringBuilder.append(printGroup(tokenGroup.onTrueBlock, nesting + 1))
             stringBuilder.append(" else ")
             stringBuilder.append(printGroup(tokenGroup.onFalseBlock, nesting + 1))
+        }
+
+        is WhileLoopGroup -> {
+            stringBuilder.append(spaces)
+            stringBuilder.append("while")
+            stringBuilder.append(printTokens(tokenGroup.condition.tokens))
+            stringBuilder.append(printGroup(tokenGroup.loopBlock), nesting + 1)
         }
     }
 

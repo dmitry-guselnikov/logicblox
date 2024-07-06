@@ -462,6 +462,7 @@ data object If: Token()
 data object Else: Token()
 data object Return: Token()
 data object NewLine: Token()
+data object While: Token()
 
 private fun factorial(x: BigDecimal): BigDecimal {
     var res = BigDecimal.ONE

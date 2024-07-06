@@ -72,9 +72,6 @@ class EditCodeActivity : AppCompatActivity() {
             consoleTV.isVisible = true
             console.clear()
             runGroup(blockGroup, mapOf(), console)
-            consoleTV.postDelayed({
-                consoleTV.isVisible = false
-            }, 6000L)
         }
     }
 
