@@ -358,7 +358,7 @@ data object ToInt: Operator() {
 }
 
 data object Print: Operator() {
-    override val precedence: Int = 5
+    override val precedence: Int = 0
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("print")

@@ -26,9 +26,11 @@ fun parseCode(code: String): BlockGroup {
     while (true) {
         val chunk = readChunk(tokens, startTokenIndex)
         if (chunk.group.isEmpty()) break
-        if (chunk.nextTokenIndex >= tokens.size) break
-        startTokenIndex = chunk.nextTokenIndex
+
         expressions.add(chunk.group)
+        if (chunk.lastUsedTokenIndex >= tokens.lastIndex) break
+
+        startTokenIndex = chunk.lastUsedTokenIndex + 1
     }
 
     return BlockGroup(expressions)
@@ -36,7 +38,7 @@ fun parseCode(code: String): BlockGroup {
 
 class GroupChunk(
     val group: TokenGroup,
-    val nextTokenIndex: Int
+    val lastUsedTokenIndex: Int
 )
 
 fun readChunk(tokens: List<Token>, startIndex: Int): GroupChunk {
@@ -123,7 +125,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 else {
                     val trueStatementChunk = readChunk(tokens, nextTokenIndex)
                     trueStatementGroup = BlockGroup(listOf(trueStatementChunk.group))
-                    skipToIndex = trueStatementChunk.nextTokenIndex
+                    skipToIndex = trueStatementChunk.lastUsedTokenIndex
                     mode = ConditionReadingMode.TRUE_STATEMENT_BLOCK_COMPLETED
                 }
             }
@@ -136,7 +138,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 else {
                     val trueStatementChunk = readChunk(tokens, nextTokenIndex)
                     trueStatementExpressions.add(trueStatementChunk.group)
-                    skipToIndex = trueStatementChunk.nextTokenIndex
+                    skipToIndex = trueStatementChunk.lastUsedTokenIndex
                 }
             }
 
@@ -154,7 +156,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                             onTrueBlock = trueStatementGroup,
                             onFalseBlock = BlockGroup(listOf())
                         ),
-                        nextTokenIndex
+                        nextTokenIndex - 1
                     )
                 }
             }
@@ -164,7 +166,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 else {
                     val falseStatementChunk = readChunk(tokens, nextTokenIndex)
                     falseStatementGroup = BlockGroup(listOf(falseStatementChunk.group))
-                    skipToIndex = falseStatementChunk.nextTokenIndex
+                    skipToIndex = falseStatementChunk.lastUsedTokenIndex
                     mode = ConditionReadingMode.COMPLETED
                 }
             }
@@ -172,12 +174,12 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
             ConditionReadingMode.FALSE_STATEMENT_BLOCK_STARTED -> {
                 if (token == BlockEnd) {
                     falseStatementGroup = BlockGroup(falseStatementExpressions)
-                    mode = ConditionReadingMode.TRUE_STATEMENT_BLOCK_COMPLETED
+                    mode = ConditionReadingMode.COMPLETED
                 }
                 else {
                     val falseStatementChunk = readChunk(tokens, nextTokenIndex)
                     falseStatementExpressions.add(falseStatementChunk.group)
-                    skipToIndex = falseStatementChunk.nextTokenIndex
+                    skipToIndex = falseStatementChunk.lastUsedTokenIndex
                 }
             }
             ConditionReadingMode.COMPLETED -> {

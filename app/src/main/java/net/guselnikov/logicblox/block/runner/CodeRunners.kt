@@ -15,16 +15,42 @@ import net.guselnikov.logicblox.block.parser.FormulaGroup
 import net.guselnikov.logicblox.block.parser.Literal
 import net.guselnikov.logicblox.block.parser.Number
 import net.guselnikov.logicblox.block.parser.Operator
+import net.guselnikov.logicblox.block.parser.Print
+import net.guselnikov.logicblox.block.parser.Println
+import net.guselnikov.logicblox.block.parser.Return
 import net.guselnikov.logicblox.block.parser.Token
 import net.guselnikov.logicblox.block.parser.TokenGroup
 import net.guselnikov.logicblox.block.parser.Value
 import net.guselnikov.logicblox.block.parser.Word
+import net.guselnikov.logicblox.block.parser.printTokens
 import net.guselnikov.logicblox.block.parser.sortTokens
 
 abstract class Console {
+    abstract fun print(str: String)
+    abstract fun println(str: String)
     abstract fun print(vararg values: Value)
     abstract fun clear()
 }
+
+data class GroupResults(
+    val variables : Map<String, ValueType> = mapOf(),
+    val shouldReturnFlag: Boolean = false
+)
+
+data class FormulaResults(
+    val variable : Pair<String?, ValueType>,
+    val shouldReturnFlag: Boolean
+) {
+    fun toGroupResults() = GroupResults(
+        variables = if (variable.first != null) mapOf(Pair(variable.first!!, variable.second)) else mapOf(),
+        shouldReturnFlag = shouldReturnFlag
+    )
+}
+
+data class FormulaCalculationResult(
+    val value: ValueType,
+    val shouldReturnFlag: Boolean
+)
 
 //enum class Verbosity {
 //    NONE, // Never prints
@@ -34,33 +60,31 @@ abstract class Console {
 //    VERBOSE // Prints every evaluated statement, line numbers
 //}
 
-fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Console? = null): Map<String?, ValueType> {
+fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Console? = null): GroupResults {
     return when (tokenGroup) {
-        is EmptyGroup -> mapOf(Pair(null, Undefined))
-        is FormulaGroup -> mapOf(runFormula(tokenGroup.tokens, params, console))
+        is EmptyGroup -> GroupResults(mapOf(), false)
+        is FormulaGroup -> {
+            runFormula(tokenGroup.tokens, params, console).toGroupResults()
+        }
         is BlockGroup -> {
             val blockParams = hashMapOf<String, ValueType>()
-            val ret = hashMapOf<String?, ValueType>()
             params.forEach { (key, value) ->
                 blockParams[key] = value
             }
-            tokenGroup.expressions.forEach { formulaTokens ->
-                val result = runGroup(formulaTokens, blockParams, console)
-                result.forEach { (key, value) ->
-                    if (key != null) blockParams[key] = value
+            tokenGroup.expressions.forEach { expression ->
+                val result = runGroup(expression, blockParams, console)
+                result.variables.forEach { (key, value) ->
+                    blockParams[key] = value
                 }
+                if (result.shouldReturnFlag) return GroupResults(result.variables, true)
             }
 
-            blockParams.forEach { (key, value) ->
-                ret[key] = value
-            }
-
-            ret
+            GroupResults(blockParams, false)
         }
         is ConditionGroup -> {
             val condition = tokenGroup.condition
-            val conditionResult = runFormula(condition.tokens, params, console).second
-            if (conditionResult !is ValueNumber) return mapOf()
+            val conditionResult = runFormula(condition.tokens, params, console).variable.second
+            if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false)
 
             if (conditionResult.toBoolean()) {
                 runGroup(tokenGroup.onTrueBlock, params, console)
@@ -75,7 +99,7 @@ fun runFormula(
     tokens: List<Token>,
     params: Map<String, ValueType>,
     console: Console? = null
-): Pair<String?, ValueType> {
+): FormulaResults {
     return try {
         var tokensToRun = tokens
         val variableName: String? =
@@ -85,10 +109,22 @@ fun runFormula(
                 name
             } else null
 
-        val sortedTokens = sortTokens(tokensToRun)
-        Pair(variableName, runFormulaTokens(sortedTokens, params, console))
+        if (tokens.contains(Return)) {
+            FormulaResults(Pair(null, Undefined), true)
+        } else {
+            val sortedTokens = sortTokens(tokensToRun)
+            val result = runFormulaTokens(sortedTokens, params, console)
+
+            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
+                console?.print(printTokens(tokens))
+                console?.print("= ")
+                console?.println(result.toText())
+            }
+            FormulaResults(Pair(variableName, result), false)
+        }
+
     } catch (e: Exception) {
-        Pair(null, Undefined)
+        FormulaResults(Pair(null, Undefined), false)
     }
 }
 
@@ -115,10 +151,12 @@ fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, consol
 
     while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
         val indexOfOperator = transformedTokens.indexOfFirst {
-            it is Operator
+            it is Operator || it is Return
         }
-        val operator = transformedTokens[indexOfOperator] as Operator
-        if (indexOfOperator < operator.argumentsNumber) return Undefined // For binary [-1] Not found, [0],[1] must be numbers
+
+        val operatorToken = transformedTokens[indexOfOperator]
+        val operator = operatorToken as? Operator ?: return Undefined
+        if (indexOfOperator < operator.argumentsNumber) return Undefined
 
         when (operator.argumentsNumber) {
             2 -> {
@@ -149,5 +187,11 @@ fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, consol
         transformedTokens.remove(operator)
     }
 
-    return (transformedTokens.getOrNull(0) as? Value)?.toValueNumber() ?: Undefined
+    val value = (transformedTokens.getOrNull(0) as? Value) ?: Undefined
+    return when (value) {
+        is Number -> value.toValueNumber()
+        is Bool -> ValueBoolean(value.toBoolean())
+        is Literal -> ValueText(value.toText())
+        else -> Undefined
+    }
 }
