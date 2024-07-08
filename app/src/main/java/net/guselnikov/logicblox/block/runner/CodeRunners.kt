@@ -15,15 +15,12 @@ import net.guselnikov.logicblox.block.parser.FormulaGroup
 import net.guselnikov.logicblox.block.parser.Literal
 import net.guselnikov.logicblox.block.parser.Number
 import net.guselnikov.logicblox.block.parser.Operator
-import net.guselnikov.logicblox.block.parser.Print
-import net.guselnikov.logicblox.block.parser.Println
 import net.guselnikov.logicblox.block.parser.Return
 import net.guselnikov.logicblox.block.parser.Token
 import net.guselnikov.logicblox.block.parser.TokenGroup
 import net.guselnikov.logicblox.block.parser.Value
 import net.guselnikov.logicblox.block.parser.WhileLoopGroup
 import net.guselnikov.logicblox.block.parser.Word
-import net.guselnikov.logicblox.block.parser.printTokens
 import net.guselnikov.logicblox.block.parser.sortTokens
 
 abstract class Console {

@@ -251,8 +251,9 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     var statementGroup = BlockGroup(listOf())
     var statementExpressions = arrayListOf<TokenGroup>()
     var skipToIndex = 0
+    val tokensSublist = tokens.subList(startIndex, tokens.size)
 
-    tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
+    tokensSublist.forEachIndexed { index, token ->
         nextTokenIndex = startIndex + index
         if (nextTokenIndex < skipToIndex) {
             return@forEachIndexed
@@ -273,23 +274,32 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
             }
 
             WhileLoopReadingMode.STATEMENT -> {
-                if (token == BlockStart) mode = WhileLoopReadingMode.STATEMENT_BLOCK_STARTED
-                else {
-                    val loopChunk = readChunk(tokens, nextTokenIndex)
-                    statementGroup = BlockGroup(listOf(loopChunk.group))
-                    skipToIndex = loopChunk.lastUsedTokenIndex
-                    mode = WhileLoopReadingMode.COMPLETED
+                when (token) {
+                    BlockStart -> mode = WhileLoopReadingMode.STATEMENT_BLOCK_STARTED
+                    NewLine -> return@forEachIndexed
+                    else -> {
+                        val loopChunk = readChunk(tokens, nextTokenIndex)
+                        statementGroup = BlockGroup(listOf(loopChunk.group))
+                        skipToIndex = loopChunk.lastUsedTokenIndex
+                        mode = WhileLoopReadingMode.COMPLETED
+                    }
                 }
             }
 
             WhileLoopReadingMode.STATEMENT_BLOCK_STARTED -> {
-                if (token == BlockEnd) {
-                    statementGroup = BlockGroup(statementExpressions)
-                    mode = WhileLoopReadingMode.COMPLETED
-                } else {
-                    val statementChunk = readChunk(tokens, nextTokenIndex)
-                    statementExpressions.add(statementChunk.group)
-                    skipToIndex = statementChunk.lastUsedTokenIndex
+                when (token) {
+                    BlockEnd -> {
+                        statementGroup = BlockGroup(statementExpressions)
+                        mode = WhileLoopReadingMode.COMPLETED
+                    }
+                    NewLine -> {
+                        return@forEachIndexed
+                    }
+                    else -> {
+                        val statementChunk = readChunk(tokens, nextTokenIndex)
+                        statementExpressions.add(statementChunk.group)
+                        skipToIndex = statementChunk.lastUsedTokenIndex
+                    }
                 }
             }
 
@@ -299,13 +309,11 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                         condition = FormulaGroup(conditionTokens),
                         loopBlock = statementGroup
                     ),
-                    nextTokenIndex - 1
+                    nextTokenIndex
                 )
             }
         }
-
     }
-
 
     return GroupChunk(
         WhileLoopGroup(
