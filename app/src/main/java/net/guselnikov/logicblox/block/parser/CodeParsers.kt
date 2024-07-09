@@ -43,7 +43,7 @@ private fun String.startsWithOneOf(vararg substring: String): String? {
  * 2. Добавить валидацию на пересечение блоков «( { ) }»
  * 3.
  */
-fun parseCode(code: String): BlockGroup {
+suspend fun parseCode(code: String): BlockGroup {
     val expressions = arrayListOf<TokenGroup>()
     val tokens = tokens(code)
     var startTokenIndex = 0
@@ -90,7 +90,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
         tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
             nextTokenIndex = startIndex + index
             when (token) {
-                is Value, is Word, is Operator, LeftBracket, RightBracket, Assign, Return -> {
+                is Value, is Word, is Operator, LeftBracket, RightBracket, Assign, Return, Break, Continue -> {
                     formulaTokens.add(token)
                 }
 
@@ -388,7 +388,7 @@ fun tokens(code: String): List<Token> {
             return@forEachIndexed
         }
 
-        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "while")
+        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "while", "break", "continue")
         val operatorStr: String? = slice.startsWithOneOf(*operationStrings)
 
         when {
@@ -414,6 +414,8 @@ fun tokens(code: String): List<Token> {
                     "if" -> tokens.add(If)
                     "else" -> tokens.add(Else)
                     "return" -> tokens.add(Return)
+                    "break" -> tokens.add(Break)
+                    "continue" -> tokens.add(Continue)
                 }
             }
 

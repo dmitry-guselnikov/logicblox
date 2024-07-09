@@ -61,7 +61,7 @@ data object Plus: Operator() {
     override fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         val rhs = args.getOrNull(1) ?: Number(BigDecimal.ZERO)
-        if (lhs.isText()) return Literal(lhs.toText() + rhs.toText())
+        if (lhs.isText() || rhs.isText()) return Literal(lhs.toText() + rhs.toText())
         return Number(lhs.toDecimal() + rhs.toDecimal())
     }
     override fun doesPrint(): Boolean = false
@@ -358,7 +358,7 @@ data object ToInt: Operator() {
 }
 
 data object Print: Operator() {
-    override val precedence: Int = 0
+    override val precedence: Int = -1
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("print")
@@ -370,7 +370,7 @@ data object Print: Operator() {
 }
 
 data object Println: Operator() {
-    override val precedence: Int = 5
+    override val precedence: Int = -1
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("println")
@@ -463,6 +463,8 @@ data object Else: Token()
 data object Return: Token()
 data object NewLine: Token()
 data object While: Token()
+data object Break: Token()
+data object Continue: Token()
 
 private fun factorial(x: BigDecimal): BigDecimal {
     var res = BigDecimal.ONE

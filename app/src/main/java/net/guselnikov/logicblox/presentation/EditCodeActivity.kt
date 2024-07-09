@@ -60,6 +60,14 @@ class EditCodeActivity : AppCompatActivity() {
         codeInput.doOnTextChanged { text, _, _, _ ->
             viewModel.setNotSaved()
         }
+        viewModel.consoleMessage.observe(this) { message ->
+            if (message == null) {
+                console.clear()
+            } else {
+                console.print(message)
+            }
+
+        }
     }
 
     private fun initClicks() {
@@ -68,10 +76,12 @@ class EditCodeActivity : AppCompatActivity() {
         }
         runButton.setOnClickListener {
             val code = codeInput.text.toString()
-            val blockGroup = parseCode(code)
+
             consoleTV.isVisible = true
             console.clear()
-            runGroup(blockGroup, mapOf(), console)
+
+            viewModel.runCode(code)
+            consoleTV.postDelayed({ consoleTV.isVisible = false }, 100000L)
         }
     }
 

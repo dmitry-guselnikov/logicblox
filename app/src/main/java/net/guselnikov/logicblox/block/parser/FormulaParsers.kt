@@ -275,6 +275,8 @@ fun printTokens(tokens: List<Token>): String {
             While -> builder.append("while")
             Return -> builder.append("return")
             NewLine -> builder.append("\n")
+            Break -> builder.append("break")
+            Continue -> builder.append("continue")
         }
 
         if (it != NewLine) builder.append(" ")

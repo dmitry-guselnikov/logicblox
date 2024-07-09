@@ -9,7 +9,9 @@ import net.guselnikov.logicblox.block.ValueType
 import net.guselnikov.logicblox.block.parser.Assign
 import net.guselnikov.logicblox.block.parser.BlockGroup
 import net.guselnikov.logicblox.block.parser.Bool
+import net.guselnikov.logicblox.block.parser.Break
 import net.guselnikov.logicblox.block.parser.ConditionGroup
+import net.guselnikov.logicblox.block.parser.Continue
 import net.guselnikov.logicblox.block.parser.EmptyGroup
 import net.guselnikov.logicblox.block.parser.FormulaGroup
 import net.guselnikov.logicblox.block.parser.Literal
@@ -32,16 +34,22 @@ abstract class Console {
 
 data class GroupResults(
     val variables : Map<String, ValueType> = mapOf(),
-    val shouldReturnFlag: Boolean = false
+    val shouldReturnFlag: Boolean = false,
+    val shouldBreakFlag: Boolean = false,
+    val shouldContinueFlag: Boolean = false
 )
 
 data class FormulaResults(
     val variable : Pair<String?, ValueType>,
-    val shouldReturnFlag: Boolean
+    val shouldReturnFlag: Boolean,
+    val shouldBreakFlag: Boolean,
+    val shouldContinueFlag: Boolean
 ) {
     fun toGroupResults() = GroupResults(
         variables = if (variable.first != null) mapOf(Pair(variable.first!!, variable.second)) else mapOf(),
-        shouldReturnFlag = shouldReturnFlag
+        shouldReturnFlag = shouldReturnFlag,
+        shouldBreakFlag = shouldBreakFlag,
+        shouldContinueFlag = shouldContinueFlag
     )
 }
 
@@ -58,9 +66,9 @@ data class FormulaCalculationResult(
 //    VERBOSE // Prints every evaluated statement, line numbers
 //}
 
-fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Console? = null): GroupResults {
+suspend fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Console? = null): GroupResults {
     return when (tokenGroup) {
-        is EmptyGroup -> GroupResults(mapOf(), false)
+        is EmptyGroup -> GroupResults(mapOf(), false, false, false)
         is FormulaGroup -> {
             runFormula(tokenGroup.tokens, params, console).toGroupResults()
         }
@@ -74,15 +82,24 @@ fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Co
                 result.variables.forEach { (key, value) ->
                     blockParams[key] = value
                 }
-                if (result.shouldReturnFlag) return GroupResults(result.variables, true)
+                if (result.shouldReturnFlag) {
+                    return GroupResults(result.variables, true, true, true)
+                }
+                if (result.shouldBreakFlag) {
+                    return GroupResults(blockParams, false, true, true)
+                }
+
+                if (result.shouldContinueFlag) {
+                    return GroupResults(blockParams, false, false, true)
+                }
             }
 
-            GroupResults(blockParams, false)
+            GroupResults(blockParams, false, false, false)
         }
         is ConditionGroup -> {
             val condition = tokenGroup.condition
             val conditionResult = runFormula(condition.tokens, params, console).variable.second
-            if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false)
+            if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false, false)
 
             if (conditionResult.toBoolean()) {
                 runGroup(tokenGroup.onTrueBlock, params, console)
@@ -109,19 +126,23 @@ fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Co
                     }
 
                     if (iterationResult.shouldReturnFlag) {
-                        return GroupResults(loopParams, true)
+                        return GroupResults(loopParams, true, true)
+                    }
+
+                    if (iterationResult.shouldBreakFlag) {
+                        break
                     }
                 } else {
                     break
                 }
             }
 
-            GroupResults(loopParams, false)
+            GroupResults(loopParams, false, false)
         }
     }
 }
 
-fun runFormula(
+suspend fun runFormula(
     tokens: List<Token>,
     params: Map<String, ValueType>,
     console: Console? = null
@@ -135,26 +156,28 @@ fun runFormula(
                 name
             } else null
 
-        if (tokens.contains(Return)) {
-            FormulaResults(Pair(null, Undefined), true)
-        } else {
-            val sortedTokens = sortTokens(tokensToRun)
-            val result = runFormulaTokens(sortedTokens, params, console)
+        when {
+            tokens.contains(Return) -> FormulaResults(Pair(null, Undefined), true, true, true)
+            tokens.contains(Break) -> FormulaResults(Pair(null, Undefined), false, true, true)
+            tokens.contains(Continue) -> FormulaResults(Pair(null, Undefined), false, false, true)
+            else -> {
+                val sortedTokens = sortTokens(tokensToRun)
+                val result = runFormulaTokens(sortedTokens, params, console)
 
 //            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
 //                console?.print(printTokens(tokens))
 //                console?.print("= ")
 //                console?.println(result.toText())
 //            }
-            FormulaResults(Pair(variableName, result), false)
+                FormulaResults(Pair(variableName, result), false, false, false)
+            }
         }
-
     } catch (e: Exception) {
-        FormulaResults(Pair(null, Undefined), false)
+        FormulaResults(Pair(null, Undefined), false, false, false)
     }
 }
 
-fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, console: Console? = null): ValueType {
+suspend fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, console: Console? = null): ValueType {
     // 1. Заменить words и numbers на Value
     val transformedTokens = arrayListOf<Token>()
     transformedTokens.addAll(
@@ -177,7 +200,7 @@ fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, consol
 
     while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
         val indexOfOperator = transformedTokens.indexOfFirst {
-            it is Operator || it is Return
+            it is Operator || it is Return || it is Break || it is Continue
         }
 
         val operatorToken = transformedTokens[indexOfOperator]
