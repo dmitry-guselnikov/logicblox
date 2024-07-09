@@ -12,7 +12,7 @@ import kotlin.Exception
 import kotlin.text.StringBuilder
 
 private val supportedOperators: List<Operator> = listOf(
-    Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+    Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
 )
 private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
@@ -199,7 +199,7 @@ fun sortTokens(tokens: List<Token>): List<Token> {
     return outputQueue
 }
 
-fun calculateTokens(tokens: List<Token>, params: Map<String, ValueType>): ValueType {
+suspend fun calculateTokens(tokens: List<Token>, params: Map<String, ValueType>): ValueType {
     // 1. Заменить words и numbers на ValueReal
     val transformedTokens = arrayListOf<Token>()
     transformedTokens.addAll(
@@ -285,7 +285,7 @@ fun printTokens(tokens: List<Token>): String {
     return builder.toString()
 }
 
-fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
+suspend fun calculateFormula(formula: String, params: Map<String, ValueNumber>): Pair<String?, ValueType> =
     try {
         var tokens = parse(formula)
         val variableName: String? =

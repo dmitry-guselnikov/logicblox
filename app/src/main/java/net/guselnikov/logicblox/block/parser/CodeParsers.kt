@@ -3,6 +3,7 @@ package net.guselnikov.logicblox.block.parser
 import java.math.BigDecimal
 
 private val supportedOperators: List<Operator> = listOf(
+    Sleep,
     Println,
     Print,
     Or,

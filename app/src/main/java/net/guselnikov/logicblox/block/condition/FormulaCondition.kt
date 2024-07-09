@@ -24,7 +24,7 @@ class FormulaCondition(private val formula: String) : Condition() {
             }
         }
 
-        val result = calculateFormula(formula, params)
-        return if (result is ValueNumber) result.toBoolean() else false
+        //val result = calculateFormula(formula, params)
+        return false //if (result is ValueNumber) result.toBoolean() else false
     }
 }

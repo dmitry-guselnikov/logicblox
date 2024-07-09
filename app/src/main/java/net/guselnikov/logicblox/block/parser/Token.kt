@@ -1,5 +1,6 @@
 package net.guselnikov.logicblox.block.parser
 
+import kotlinx.coroutines.delay
 import net.guselnikov.logicblox.block.ValueBoolean
 import net.guselnikov.logicblox.block.ValueDecimal
 import net.guselnikov.logicblox.block.ValueNumber
@@ -21,7 +22,7 @@ sealed class Operator: Token() {
     abstract val isRightHand: Boolean
     abstract val argumentsNumber: Int
     abstract val symbols: List<String>
-    abstract fun calculate(vararg args: Value): Value
+    abstract suspend fun calculate(vararg args: Value): Value
     abstract fun doesPrint(): Boolean
 }
 
@@ -30,7 +31,7 @@ data object Or: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("||")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -44,7 +45,7 @@ data object And: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("&&")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -58,7 +59,7 @@ data object Plus: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("+")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         val rhs = args.getOrNull(1) ?: Number(BigDecimal.ZERO)
         if (lhs.isText() || rhs.isText()) return Literal(lhs.toText() + rhs.toText())
@@ -72,7 +73,7 @@ data object Minus: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("-")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         val rhs = args.getOrNull(1) ?: Number(BigDecimal.ZERO)
 
@@ -86,7 +87,7 @@ data object Div: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("/", "÷", ":")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         val rhs = args.getOrNull(1) ?: Number(BigDecimal.ONE)
 
@@ -106,7 +107,7 @@ data object Mult: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("*", "•", "×")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -120,7 +121,7 @@ data object Sqrt: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("√", "sqrt")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val x = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(pow(x.toDecimal(), BigDecimal("0.5")))
     }
@@ -133,7 +134,7 @@ data object Pow: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("^", "**")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         val rhs = args.getOrNull(1) ?: Number(BigDecimal.ONE)
 
@@ -147,7 +148,7 @@ data object Less: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("<")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -162,7 +163,7 @@ data object LessOrEqual: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("<=", "≤")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -177,7 +178,7 @@ data object Greater: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf(">")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -191,7 +192,7 @@ data object GreaterOrEqual: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf(">=", "≥")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -205,7 +206,7 @@ data object Equals: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("==")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -219,7 +220,7 @@ data object NotEquals: Operator() {
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("!=", "≠")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
 
@@ -232,7 +233,7 @@ data object Mod: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 2
     override val symbols: List<String> = listOf("%", "mod")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Bool(false)
         val rhs = args.getOrNull(1) ?: Bool(false)
         return Number(lhs.toDecimal() % rhs.toDecimal())
@@ -245,7 +246,7 @@ data object UnaryMinus: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("-")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(lhs.toDecimal().multiply(BigDecimal(-1)))
     }
@@ -257,7 +258,7 @@ data object Factorial: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("!")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(factorial(arg.toDecimal()))
     }
@@ -278,7 +279,7 @@ data object Sin: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("sin")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(sinBigDecimal(arg.toDecimal()))
     }
@@ -290,7 +291,7 @@ data object Cos: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("cos")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(cosBigDecimal(arg.toDecimal()))
     }
@@ -302,7 +303,7 @@ data object Tan: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("tg", "tan")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(tanBigDecimal(arg.toDecimal()))
     }
@@ -314,7 +315,7 @@ data object Abs: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("abs")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(arg.toDecimal().abs())
     }
@@ -326,7 +327,7 @@ data object Ln: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("ln")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(lnBigDecimal(arg.toDecimal()))
     }
@@ -338,7 +339,7 @@ data object Lg: Operator() {
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("lg")
 
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(lgBigDecimal(arg.toDecimal()))
     }
@@ -350,7 +351,7 @@ data object ToInt: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("int")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(roundToInt(arg.toDecimal()))
     }
@@ -362,7 +363,7 @@ data object Print: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("print")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Literal("")
         return arg
     }
@@ -374,11 +375,26 @@ data object Println: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 1
     override val symbols: List<String> = listOf("println")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         val arg = args.getOrNull(0) ?: Literal("\n")
         return Literal(arg.toText() + "\n")
     }
     override fun doesPrint(): Boolean = true
+}
+
+data object Sleep: Operator() {
+    override val precedence: Int = -1
+    override val isRightHand: Boolean = false
+    override val argumentsNumber: Int = 1
+    override val symbols: List<String> = listOf("sleep")
+
+    override suspend fun calculate(vararg args: Value): Value {
+        val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
+        delay((arg.toDecimal() * BigDecimal("1000")).toLong())
+        return arg
+    }
+
+    override fun doesPrint(): Boolean = false
 }
 
 data object Rand: Operator() {
@@ -386,7 +402,7 @@ data object Rand: Operator() {
     override val isRightHand: Boolean = false
     override val argumentsNumber: Int = 0
     override val symbols: List<String> = listOf("rand")
-    override fun calculate(vararg args: Value): Value {
+    override suspend fun calculate(vararg args: Value): Value {
         return Number(BigDecimal(Math.random()))
     }
     override fun doesPrint(): Boolean = false
