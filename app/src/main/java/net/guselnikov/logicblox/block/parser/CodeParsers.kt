@@ -1,5 +1,6 @@
 package net.guselnikov.logicblox.block.parser
 
+import net.guselnikov.logicblox.block.Undefined
 import java.math.BigDecimal
 
 private val supportedOperators: List<Operator> = listOf(
@@ -80,6 +81,10 @@ fun readChunk(tokens: List<Token>, startIndex: Int): GroupChunk {
         return readWhileLoop(tokens, chunkStartIndex)
     }
 
+    if (tokens.getOrNull(chunkStartIndex) == For) {
+        return readForLoop(tokens, chunkStartIndex)
+    }
+
     return readFormula(tokens, chunkStartIndex)
 }
 
@@ -95,7 +100,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
                     formulaTokens.add(token)
                 }
 
-                is While, If, is Else, is BlockStart, is BlockEnd -> {
+                is While, If, is Else, is BlockStart, is BlockEnd, For, From, To, Step -> {
                     return@breaking
                 }
 
@@ -324,6 +329,129 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     )
 }
 
+// for (i from 1 to 10 step 0.5)
+private enum class ForLoopReadingMode {
+    INIT,
+    VARIABLE,
+    VARIABLE_READ,
+    START_VALUE,
+    END_VALUE,
+    STEP,
+    STATEMENT,
+    STATEMENT_BLOCK_STARTED,
+    COMPLETED
+}
+
+// for (i from 1 to 10 step 0.5)
+fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
+    var mode = ForLoopReadingMode.INIT
+    var iterationVariable: String = ""
+
+    val startValueTokens = arrayListOf<Token>()
+    val endValueTokens = arrayListOf<Token>()
+    val stepValueTokens = arrayListOf<Token>()
+
+    var nextTokenIndex = startIndex
+    var statementExpressions = arrayListOf<TokenGroup>()
+    var skipToIndex = 0
+    val tokensSublist = tokens.subList(startIndex, tokens.size)
+
+    tokensSublist.forEachIndexed { index, token ->
+        nextTokenIndex = startIndex + index
+        if (nextTokenIndex < skipToIndex) {
+            return@forEachIndexed
+        }
+
+        when (mode) {
+            ForLoopReadingMode.INIT -> {
+                if (token == For) mode = ForLoopReadingMode.VARIABLE
+            }
+            ForLoopReadingMode.VARIABLE -> {
+                if (token is Word) {
+                    iterationVariable = token.string
+                    mode = ForLoopReadingMode.VARIABLE_READ
+                }
+            }
+            ForLoopReadingMode.VARIABLE_READ -> {
+                if (token == From) {
+                    mode = ForLoopReadingMode.START_VALUE
+                }
+            }
+            ForLoopReadingMode.START_VALUE -> {
+                if (token == To) mode = ForLoopReadingMode.END_VALUE
+                else startValueTokens.add(token)
+            }
+            ForLoopReadingMode.END_VALUE -> {
+                when (token) {
+                    Step -> mode = ForLoopReadingMode.STEP
+                    RightBracket -> mode = ForLoopReadingMode.STATEMENT
+                    else -> endValueTokens.add(token)
+                }
+            }
+            ForLoopReadingMode.STEP -> {
+                var nesting = 1
+                if (token == LeftBracket) nesting++
+                if (token == RightBracket) nesting--
+
+                if (nesting == 0) mode = ForLoopReadingMode.STATEMENT
+                else stepValueTokens.add(token)
+            }
+            ForLoopReadingMode.STATEMENT -> {
+                when (token) {
+                    BlockStart -> mode = ForLoopReadingMode.STATEMENT_BLOCK_STARTED
+                    NewLine -> return@forEachIndexed
+                    else -> {
+                        val loopChunk = readChunk(tokens, nextTokenIndex)
+                        statementExpressions.add(loopChunk.group)
+                        skipToIndex = loopChunk.lastUsedTokenIndex
+                        mode = ForLoopReadingMode.COMPLETED
+                    }
+                }
+            }
+            ForLoopReadingMode.STATEMENT_BLOCK_STARTED -> {
+                when (token) {
+                    BlockEnd -> {
+                        mode = ForLoopReadingMode.COMPLETED
+                    }
+                    NewLine -> return@forEachIndexed
+                    else -> {
+                        val statementChunk = readChunk(tokens, nextTokenIndex)
+                        statementExpressions.add(statementChunk.group)
+                        skipToIndex = statementChunk.lastUsedTokenIndex
+                    }
+                }
+            }
+            ForLoopReadingMode.COMPLETED -> {
+                return GroupChunk(
+                    ForLoopGroup(
+                        variable = iterationVariable,
+                        loopBlock = BlockGroup(statementExpressions),
+                        start = FormulaGroup(startValueTokens),
+                        end = FormulaGroup(endValueTokens),
+                        step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else FormulaGroup(
+                            listOf(Number(BigDecimal.ONE))
+                        )
+                    ),
+                    nextTokenIndex
+                )
+            }
+        }
+    }
+
+    return GroupChunk(
+        ForLoopGroup(
+            variable = iterationVariable,
+            loopBlock = BlockGroup(statementExpressions),
+            start = FormulaGroup(startValueTokens),
+            end = FormulaGroup(endValueTokens),
+            step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else FormulaGroup(
+                listOf(Number(BigDecimal.ONE))
+            )
+        ),
+        nextTokenIndex
+    )
+}
+
 fun tokens(code: String): List<Token> {
     val tokens = arrayListOf<Token>()
     var readingNumber = false
@@ -389,7 +517,7 @@ fun tokens(code: String): List<Token> {
             return@forEachIndexed
         }
 
-        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "while", "break", "continue")
+        val tokenStr: String? = slice.startsWithOneOf("if", "else", "return", "while", "break", "continue", "for", "to", "from", "step")
         val operatorStr: String? = slice.startsWithOneOf(*operationStrings)
 
         when {
@@ -417,6 +545,10 @@ fun tokens(code: String): List<Token> {
                     "return" -> tokens.add(Return)
                     "break" -> tokens.add(Break)
                     "continue" -> tokens.add(Continue)
+                    "for" -> tokens.add(For)
+                    "to" -> tokens.add(To)
+                    "from" -> tokens.add(From)
+                    "step" -> tokens.add(Step)
                 }
             }
 
@@ -428,7 +560,7 @@ fun tokens(code: String): List<Token> {
                 val lastToken = tokens.lastOrNull()
                 val currentOperator = operatorStr.toOperator()
                 when {
-                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket || lastToken == Assign) -> tokens.add(
+                    symbol == '-' && (tokens.isEmpty() || lastToken is Operator || lastToken == LeftBracket || lastToken == Assign || lastToken == From || lastToken == To || lastToken == Step || lastToken == BlockStart || lastToken == BlockEnd) -> tokens.add(
                         UnaryMinus
                     )
 

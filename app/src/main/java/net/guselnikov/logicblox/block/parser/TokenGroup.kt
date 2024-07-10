@@ -1,6 +1,7 @@
 package net.guselnikov.logicblox.block.parser
 
 import net.guselnikov.logicblox.block.base.GroupBlock
+import java.math.BigDecimal
 import kotlin.math.exp
 
 sealed class TokenGroup {
@@ -31,6 +32,16 @@ class WhileLoopGroup(
     val loopBlock: BlockGroup
 ): TokenGroup() {
     override fun isEmpty(): Boolean = condition.isEmpty()
+}
+
+// for (i from 1 to 10 step 0.5)
+class ForLoopGroup(
+    val variable: String,
+    val loopBlock: BlockGroup,
+    val start: FormulaGroup,
+    val end: FormulaGroup,
+    val step: FormulaGroup) : TokenGroup() {
+    override fun isEmpty(): Boolean = loopBlock.isEmpty()
 }
 
 @Suppress("Unused")
@@ -71,6 +82,19 @@ fun printGroup(tokenGroup: TokenGroup, nesting:Int = 0): String {
             stringBuilder.append("while")
             stringBuilder.append(printTokens(tokenGroup.condition.tokens))
             stringBuilder.append(printGroup(tokenGroup.loopBlock), nesting + 1)
+        }
+
+        is ForLoopGroup -> {
+            stringBuilder.append(spaces)
+            stringBuilder.append("for ")
+            stringBuilder.append(tokenGroup.variable)
+            stringBuilder.append(" from ")
+            stringBuilder.append(tokenGroup.start.toString())
+            stringBuilder.append(" to ")
+            stringBuilder.append(tokenGroup.end.toString())
+            stringBuilder.append(" step ")
+            stringBuilder.append(tokenGroup.step.toString())
+            stringBuilder.append(printGroup(tokenGroup.loopBlock))
         }
     }
 

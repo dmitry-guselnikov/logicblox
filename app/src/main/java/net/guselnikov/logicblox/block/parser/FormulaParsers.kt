@@ -256,7 +256,7 @@ suspend fun calculateTokens(tokens: List<Token>, params: Map<String, ValueType>)
 }
 
 @Suppress("Unused")
-fun printTokens(tokens: List<Token>): String {
+fun printTokens(tokens: List<Token>, delimeter: String = " "): String {
     val builder = StringBuilder()
     tokens.forEach {
         when (it) {
@@ -277,9 +277,14 @@ fun printTokens(tokens: List<Token>): String {
             NewLine -> builder.append("\n")
             Break -> builder.append("break")
             Continue -> builder.append("continue")
+            For -> builder.append("for")
+            From -> builder.append("from")
+            Step -> builder.append("step")
+            To -> builder.append("to")
+            is Values -> builder.append("[${printTokens(it.values, ", ")}]")
         }
 
-        if (it != NewLine) builder.append(" ")
+        if (it != NewLine) builder.append(delimeter)
     }
 
     return builder.toString()

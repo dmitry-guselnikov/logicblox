@@ -13,6 +13,7 @@ import net.guselnikov.logicblox.block.parser.Break
 import net.guselnikov.logicblox.block.parser.ConditionGroup
 import net.guselnikov.logicblox.block.parser.Continue
 import net.guselnikov.logicblox.block.parser.EmptyGroup
+import net.guselnikov.logicblox.block.parser.ForLoopGroup
 import net.guselnikov.logicblox.block.parser.FormulaGroup
 import net.guselnikov.logicblox.block.parser.Literal
 import net.guselnikov.logicblox.block.parser.Number
@@ -24,6 +25,7 @@ import net.guselnikov.logicblox.block.parser.Value
 import net.guselnikov.logicblox.block.parser.WhileLoopGroup
 import net.guselnikov.logicblox.block.parser.Word
 import net.guselnikov.logicblox.block.parser.sortTokens
+import java.math.BigDecimal
 
 abstract class Console {
     abstract fun print(str: String)
@@ -33,20 +35,25 @@ abstract class Console {
 }
 
 data class GroupResults(
-    val variables : Map<String, ValueType> = mapOf(),
+    val variables: Map<String, ValueType> = mapOf(),
     val shouldReturnFlag: Boolean = false,
     val shouldBreakFlag: Boolean = false,
     val shouldContinueFlag: Boolean = false
 )
 
 data class FormulaResults(
-    val variable : Pair<String?, ValueType>,
+    val variable: Pair<String?, ValueType>,
     val shouldReturnFlag: Boolean,
     val shouldBreakFlag: Boolean,
     val shouldContinueFlag: Boolean
 ) {
     fun toGroupResults() = GroupResults(
-        variables = if (variable.first != null) mapOf(Pair(variable.first!!, variable.second)) else mapOf(),
+        variables = if (variable.first != null) mapOf(
+            Pair(
+                variable.first!!,
+                variable.second
+            )
+        ) else mapOf(),
         shouldReturnFlag = shouldReturnFlag,
         shouldBreakFlag = shouldBreakFlag,
         shouldContinueFlag = shouldContinueFlag
@@ -66,12 +73,17 @@ data class FormulaCalculationResult(
 //    VERBOSE // Prints every evaluated statement, line numbers
 //}
 
-suspend fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, console: Console? = null): GroupResults {
+suspend fun runGroup(
+    tokenGroup: TokenGroup,
+    params: Map<String, ValueType>,
+    console: Console? = null
+): GroupResults {
     return when (tokenGroup) {
         is EmptyGroup -> GroupResults(mapOf(), false, false, false)
         is FormulaGroup -> {
             runFormula(tokenGroup.tokens, params, console).toGroupResults()
         }
+
         is BlockGroup -> {
             val blockParams = hashMapOf<String, ValueType>()
             params.forEach { (key, value) ->
@@ -96,10 +108,11 @@ suspend fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, con
 
             GroupResults(blockParams, false, false, false)
         }
+
         is ConditionGroup -> {
             val condition = tokenGroup.condition
             val conditionResult = runFormula(condition.tokens, params, console).variable.second
-            if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false, false)
+            if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false, false, false)
 
             if (conditionResult.toBoolean()) {
                 runGroup(tokenGroup.onTrueBlock, params, console)
@@ -116,7 +129,8 @@ suspend fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, con
             }
 
             while (true) {
-                val conditionResult = runFormula(condition.tokens, loopParams, console).variable.second
+                val conditionResult =
+                    runFormula(condition.tokens, loopParams, console).variable.second
                 if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false)
 
                 if (conditionResult.toBoolean()) {
@@ -137,7 +151,53 @@ suspend fun runGroup(tokenGroup: TokenGroup, params: Map<String, ValueType>, con
                 }
             }
 
-            GroupResults(loopParams, false, false)
+            GroupResults(loopParams, false, false, false)
+        }
+
+        is ForLoopGroup -> {
+            val loopParams: HashMap<String, ValueType> = hashMapOf()
+            params.forEach { (key, value) ->
+                loopParams[key] = value
+            }
+
+            val variableName = tokenGroup.variable
+
+            val startValue = runFormula(tokenGroup.start.tokens, loopParams, console).variable.second
+            if (startValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
+
+            val endValue = runFormula(tokenGroup.end.tokens, loopParams, console).variable.second
+            if (endValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
+
+            val stepValue = runFormula(tokenGroup.step.tokens, loopParams, console).variable.second
+            if (stepValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
+
+            var iterationValue = startValue as ValueNumber
+
+            while (
+                if (endValue.toBigDecimal() > startValue.toBigDecimal()) {
+                    iterationValue.toBigDecimal() <= endValue.toBigDecimal()
+                } else {
+                    iterationValue.toBigDecimal() >= endValue.toBigDecimal()
+                }
+            ) {
+                loopParams[variableName] = iterationValue
+                val iterationResult = runGroup(tokenGroup.loopBlock, loopParams, console)
+                iterationResult.variables.forEach { (key, value) ->
+                    loopParams[key] = value
+                }
+
+                if (iterationResult.shouldReturnFlag) {
+                    return GroupResults(loopParams, true, true, true)
+                }
+
+                if (iterationResult.shouldBreakFlag) {
+                    break
+                }
+
+                iterationValue = ValueDecimal(iterationValue.toBigDecimal() + stepValue.toBigDecimal())
+            }
+
+            GroupResults(loopParams, false, false, false)
         }
     }
 }
@@ -177,7 +237,11 @@ suspend fun runFormula(
     }
 }
 
-suspend fun runFormulaTokens(tokens: List<Token>, params: Map<String, ValueType>, console: Console? = null): ValueType {
+suspend fun runFormulaTokens(
+    tokens: List<Token>,
+    params: Map<String, ValueType>,
+    console: Console? = null
+): ValueType {
     // 1. Заменить words и numbers на Value
     val transformedTokens = arrayListOf<Token>()
     transformedTokens.addAll(

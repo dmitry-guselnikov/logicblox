@@ -415,7 +415,6 @@ sealed class Value : Token() {
     abstract fun toDouble(): Double
     abstract fun toBoolean(): Boolean
     abstract fun toText(): String
-
     abstract fun isText(): Boolean
 }
 
@@ -467,6 +466,16 @@ class Literal(val string: String): Value() {
     override fun isText(): Boolean = true
 }
 
+class Values(val values: List<Value>): Value() {
+    override fun toValueNumber() = ValueBoolean(false)
+    override fun toValueText() = ValueText("[${printTokens(values)}]")
+    override fun toDecimal() = BigDecimal.ZERO
+    override fun toDouble() = 0.0
+    override fun toBoolean() = values.isNotEmpty()
+    override fun toText() = toValueText().text
+    override fun isText() = false
+}
+
 class Word(val string: String) : Token()
 
 data object LeftBracket : Token()
@@ -481,6 +490,10 @@ data object NewLine: Token()
 data object While: Token()
 data object Break: Token()
 data object Continue: Token()
+data object For: Token()
+data object From: Token()
+data object To: Token()
+data object Step: Token()
 
 private fun factorial(x: BigDecimal): BigDecimal {
     var res = BigDecimal.ONE
