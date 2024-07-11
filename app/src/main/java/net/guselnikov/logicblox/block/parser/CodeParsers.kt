@@ -1,37 +1,6 @@
 package net.guselnikov.logicblox.block.parser
 
-import net.guselnikov.logicblox.block.Undefined
 import java.math.BigDecimal
-
-private val supportedOperators: List<Operator> = listOf(
-    Sleep,
-    Println,
-    Print,
-    Or,
-    And,
-    Plus,
-    Minus,
-    Div,
-    Mult,
-    Sqrt,
-    Pow,
-    LessOrEqual,
-    GreaterOrEqual,
-    Less,
-    Greater,
-    Equals,
-    NotEquals,
-    Mod,
-    Sin,
-    Cos,
-    Tan,
-    Abs,
-    Ln,
-    Lg,
-    ToInt,
-    Rand
-)
-private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
 private fun String.startsWithOneOf(vararg substring: String): String? {
     substring.forEach {

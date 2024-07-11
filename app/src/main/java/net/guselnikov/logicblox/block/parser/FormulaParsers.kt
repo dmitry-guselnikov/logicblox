@@ -11,10 +11,10 @@ import java.util.Stack
 import kotlin.Exception
 import kotlin.text.StringBuilder
 
-private val supportedOperators: List<Operator> = listOf(
+val supportedOperators: List<Operator> = listOf(
     Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
 )
-private val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
+val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
 private fun String.startsWithOneOf(vararg substring: String): String? {
     substring.forEach {

@@ -7,14 +7,15 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.guselnikov.logicblox.block.ValueDecimal
 import net.guselnikov.logicblox.block.parser.Value
 import net.guselnikov.logicblox.block.parser.parseCode
 import net.guselnikov.logicblox.block.runner.Console
 import net.guselnikov.logicblox.block.runner.runGroup
 import net.guselnikov.logicblox.datasource.SnippetsDataSource
+import java.math.BigDecimal
 
 class EditCodeViewModel(private val snippetsDataSource: SnippetsDataSource) : ViewModel() {
-
     private val _savedFlag = MutableLiveData(false)
     val savedFlag: LiveData<Boolean> = _savedFlag
 
@@ -22,6 +23,8 @@ class EditCodeViewModel(private val snippetsDataSource: SnippetsDataSource) : Vi
     val consoleMessage: LiveData<String?> = _consoleMessage
 
     private val console: Console
+    var canvasWidth: Int = 0
+    var canvasHeight: Int = 0
 
     init {
         console = LiveDataConsole(this)
@@ -83,7 +86,10 @@ class EditCodeViewModel(private val snippetsDataSource: SnippetsDataSource) : Vi
             val codeParsedTime = System.currentTimeMillis()
             _consoleMessage.value = "Code parsed in ${codeParsedTime - beginning} ms\n"
             withContext(Dispatchers.IO) {
-                runGroup(blockGroup, mapOf(), console)
+                runGroup(blockGroup, mapOf(
+                    Pair("screenWidth", ValueDecimal(BigDecimal(canvasWidth))),
+                    Pair("screenHeight", ValueDecimal(BigDecimal(canvasHeight)))
+                ), console)
             }
             val end = System.currentTimeMillis()
             _consoleMessage.value = "\nExecution finished in ${end - codeParsedTime} ms"

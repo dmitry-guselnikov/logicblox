@@ -53,17 +53,19 @@
 
     </RelativeLayout>
 
-    <EditText
+    <com.amrdeveloper.codeview.CodeView
         android:id="@+id/code_input"
+        android:padding="8dp"
+        android:layout_marginTop="64dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="64dp"
+        android:background="#404040"
+        android:dropDownWidth="200dp"
         android:fontFamily="@font/firacode"
-        android:gravity="start"
-        android:inputType="textFilter|textMultiLine|textNoSuggestions"
-        android:padding="8dp"
-        android:textSize="13dp"
-        tools:text="if (a>0) {\n\t\t\tb=20\n}" />
+        android:dropDownHorizontalOffset="0dp"
+        android:dropDownSelector="#202020"
+        tools:text="if (a>0) {\n\t\t\tb=20\n}"
+        android:gravity="top|start" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -91,5 +93,11 @@
         </LinearLayout>
 
     </ScrollView>
+
+    <View
+        android:id="@+id/canvas"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
 
 </RelativeLayout>
