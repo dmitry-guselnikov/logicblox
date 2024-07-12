@@ -11,15 +11,15 @@ sealed class TokenGroup {
     abstract fun isEmpty(): Boolean
 }
 
-// При создании FormulaGroup закешировать всё, что можно
-//
-class FormulaGroup(unsortedTokens: List<Token>): TokenGroup() {
+class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenGroup() {
     val tokens: List<Token>
     val variableName: String?
-    val transformedTokens: ArrayList<Token?>
-    val actions: ArrayList<OperationAction> = arrayListOf()
-    var isImmediateUndefinedReturn: Boolean
-
+    private val transformedTokens: ArrayList<Token?>
+    private val actions: ArrayList<OperationAction> = arrayListOf()
+    private var isImmediateUndefinedReturn: Boolean
+    val shouldReturn: Boolean = unsortedTokens.contains(Return)
+    val shouldContinue: Boolean = unsortedTokens.contains(Continue)
+    val shouldBreak: Boolean = unsortedTokens.contains(Break)
 
     data class OperationAction(
         val operator: Operator,
@@ -131,7 +131,7 @@ class FormulaGroup(unsortedTokens: List<Token>): TokenGroup() {
                             is ValueBoolean -> Bool(param.bool)
                             is ValueDecimal -> Number(param.decimal)
                             is ValueText -> Literal(param.text)
-                            Undefined -> Literal("undefined")
+                            else -> throw IllegalArgumentException("Unknown parameter ${it.string}")
                         }
                     }
                     else -> it
@@ -166,10 +166,6 @@ class FormulaGroup(unsortedTokens: List<Token>): TokenGroup() {
 
 class BlockGroup(val expressions: List<TokenGroup>): TokenGroup() {
     override fun isEmpty(): Boolean = expressions.isEmpty()
-}
-
-data object EmptyGroup : TokenGroup() {
-    override fun isEmpty(): Boolean = true
 }
 
 class ConditionGroup(
@@ -209,9 +205,8 @@ fun printGroup(tokenGroup: TokenGroup, nesting:Int = 0): String {
     when (tokenGroup) {
         is FormulaGroup -> {
             stringBuilder.append(spaces)
-            stringBuilder.append(printTokens(tokenGroup.tokens))
+            stringBuilder.append(printTokens(tokenGroup.unsortedTokens, ""))
         }
-        is EmptyGroup -> stringBuilder.append("{}")
         is BlockGroup -> {
             stringBuilder.append("{\n")
             tokenGroup.expressions.forEach { expression ->
@@ -239,30 +234,21 @@ fun printGroup(tokenGroup: TokenGroup, nesting:Int = 0): String {
 
         is ForLoopGroup -> {
             stringBuilder.append(spaces)
-            stringBuilder.append("for ")
+            stringBuilder.append("for (")
             stringBuilder.append(tokenGroup.variable)
             stringBuilder.append(" from ")
-            stringBuilder.append(tokenGroup.start.toString())
+            stringBuilder.append(printGroup(tokenGroup.start))
             stringBuilder.append(" to ")
-            stringBuilder.append(tokenGroup.end.toString())
-            stringBuilder.append(" step ")
-            stringBuilder.append(tokenGroup.step.toString())
+            stringBuilder.append(printGroup(tokenGroup.end))
+            val step = tokenGroup.step
+            if (step != null) {
+                stringBuilder.append(" step ")
+                stringBuilder.append(printGroup(step))
+            }
+            stringBuilder.append(")")
             stringBuilder.append(printGroup(tokenGroup.loopBlock))
         }
     }
 
     return stringBuilder.toString()
 }
-
-//        var formulaToCalculate: String = formula
-//        val conditionalFormula = breakConditionalFormula(formula)
-//        if (conditionalFormula != null) {
-//            // Calculate condition
-//            val conditionTokens = parse(conditionalFormula.condition)
-//            val sortedConditionTokens = sortTokens(conditionTokens)
-//            val conditionResult = calculateTokens(sortedConditionTokens, params)
-//            if (conditionResult is ValueNumber) {
-//                formulaToCalculate =
-//                    if (conditionResult.toBoolean()) conditionalFormula.trueStatementFormula else conditionalFormula.falseStatementFormula
-//            }
-//        }

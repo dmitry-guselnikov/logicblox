@@ -60,6 +60,7 @@ fun readChunk(tokens: List<Token>, startIndex: Int): GroupChunk {
 fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
     val formulaTokens = arrayListOf<Token>()
     var nextTokenIndex = startIndex
+    var lineNumber: Int? = null
 
     run breaking@{
         tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
@@ -67,6 +68,9 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
             when (token) {
                 is Value, is Word, is Operator, LeftBracket, RightBracket, Assign, Return, Break, Continue -> {
                     formulaTokens.add(token)
+                    if (lineNumber == null) {
+                        lineNumber = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                    }
                 }
 
                 is While, If, is Else, is BlockStart, is BlockEnd, For, From, To, Step -> {
@@ -82,7 +86,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
         }
     }
 
-    return GroupChunk(FormulaGroup(formulaTokens), nextTokenIndex)
+    return GroupChunk(FormulaGroup(formulaTokens, lineNumber ?: 0), nextTokenIndex)
 }
 
 private enum class ConditionReadingMode {
@@ -99,6 +103,7 @@ private enum class ConditionReadingMode {
 fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
     var mode: ConditionReadingMode = ConditionReadingMode.INIT
     val conditionTokens = arrayListOf<Token>()
+    var conditionLine: Int? = null
     var conditionNesting = 0
     var nextTokenIndex = startIndex
     var trueStatementGroup = BlockGroup(listOf())
@@ -123,6 +128,9 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 if (token == LeftBracket) conditionNesting++
                 if (token == RightBracket) conditionNesting--
                 conditionTokens.add(token)
+                if (conditionLine == null) {
+                    conditionLine = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                }
                 if (conditionNesting == 0) mode = ConditionReadingMode.TRUE_STATEMENT
             }
 
@@ -157,7 +165,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
                 } else {
                     return GroupChunk(
                         ConditionGroup(
-                            condition = FormulaGroup(conditionTokens),
+                            condition = FormulaGroup(conditionTokens, conditionLine ?: 0),
                             onTrueBlock = trueStatementGroup,
                             onFalseBlock = BlockGroup(listOf())
                         ),
@@ -190,7 +198,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
             ConditionReadingMode.COMPLETED -> {
                 return GroupChunk(
                     ConditionGroup(
-                        condition = FormulaGroup(conditionTokens),
+                        condition = FormulaGroup(conditionTokens, conditionLine ?: 0),
                         onTrueBlock = trueStatementGroup,
                         onFalseBlock = falseStatementGroup
                     ),
@@ -202,7 +210,7 @@ fun readCondition(tokens: List<Token>, startIndex: Int): GroupChunk {
 
     return GroupChunk(
         ConditionGroup(
-            condition = FormulaGroup(conditionTokens),
+            condition = FormulaGroup(conditionTokens, conditionLine ?: 0),
             onTrueBlock = trueStatementGroup,
             onFalseBlock = falseStatementGroup
         ),
@@ -221,6 +229,7 @@ private enum class WhileLoopReadingMode {
 fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     var mode = WhileLoopReadingMode.INIT
     val conditionTokens = arrayListOf<Token>()
+    var conditionLine: Int? = null
     var conditionNesting = 0
     var nextTokenIndex = startIndex
     var statementGroup = BlockGroup(listOf())
@@ -245,6 +254,9 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                 if (token == RightBracket) conditionNesting--
                 conditionTokens.add(token)
                 // TODO: Сделать скобки необязательными!
+                if (conditionLine == null) {
+                    conditionLine = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                }
                 if (conditionNesting == 0) mode = WhileLoopReadingMode.STATEMENT
             }
 
@@ -281,7 +293,7 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
             WhileLoopReadingMode.COMPLETED -> {
                 return GroupChunk(
                     WhileLoopGroup(
-                        condition = FormulaGroup(conditionTokens),
+                        condition = FormulaGroup(conditionTokens, conditionLine ?: 0),
                         loopBlock = statementGroup
                     ),
                     nextTokenIndex
@@ -292,7 +304,7 @@ fun readWhileLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
 
     return GroupChunk(
         WhileLoopGroup(
-            condition = FormulaGroup(conditionTokens),
+            condition = FormulaGroup(conditionTokens, conditionLine ?: 0),
             loopBlock = statementGroup
         ), nextTokenIndex
     )
@@ -324,6 +336,9 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     var statementExpressions = arrayListOf<TokenGroup>()
     var skipToIndex = 0
     val tokensSublist = tokens.subList(startIndex, tokens.size)
+    var startValueLine: Int? = null
+    var endValueLine: Int? = null
+    var stepValueLine: Int? = null
 
     var endValueNesting = 0
 
@@ -350,7 +365,12 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
             }
             ForLoopReadingMode.START_VALUE -> {
                 if (token == To) mode = ForLoopReadingMode.END_VALUE
-                else startValueTokens.add(token)
+                else {
+                    startValueTokens.add(token)
+                    if (startValueLine == null) {
+                        startValueLine = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                    }
+                }
             }
             ForLoopReadingMode.END_VALUE -> {
                 when (token) {
@@ -360,7 +380,12 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                         endValueNesting--
                         if (endValueNesting < 0) mode = ForLoopReadingMode.STATEMENT
                     }
-                    else -> endValueTokens.add(token)
+                    else -> {
+                        endValueTokens.add(token)
+                        if (endValueLine == null) {
+                            endValueLine = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                        }
+                    }
                 }
             }
             ForLoopReadingMode.STEP -> {
@@ -369,7 +394,12 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                 if (token == RightBracket) nesting--
 
                 if (nesting == 0) mode = ForLoopReadingMode.STATEMENT
-                else stepValueTokens.add(token)
+                else {
+                    stepValueTokens.add(token)
+                    if (stepValueLine == null) {
+                        stepValueLine = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
+                    }
+                }
             }
             ForLoopReadingMode.STATEMENT -> {
                 when (token) {
@@ -401,9 +431,9 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                     ForLoopGroup(
                         variable = iterationVariable,
                         loopBlock = BlockGroup(statementExpressions),
-                        start = FormulaGroup(startValueTokens),
-                        end = FormulaGroup(endValueTokens),
-                        step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else null
+                        start = FormulaGroup(startValueTokens, startValueLine ?: 0),
+                        end = FormulaGroup(endValueTokens, endValueLine ?: 0),
+                        step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens, stepValueLine ?: 0) else null
                     ),
                     nextTokenIndex
                 )
@@ -415,9 +445,9 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
         ForLoopGroup(
             variable = iterationVariable,
             loopBlock = BlockGroup(statementExpressions),
-            start = FormulaGroup(startValueTokens),
-            end = FormulaGroup(endValueTokens),
-            step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else null
+            start = FormulaGroup(startValueTokens, startValueLine ?: 0),
+            end = FormulaGroup(endValueTokens, endValueLine ?: 0),
+            step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens, stepValueLine ?: 0) else null
         ),
         nextTokenIndex
     )

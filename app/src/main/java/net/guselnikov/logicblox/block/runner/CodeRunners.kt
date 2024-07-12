@@ -1,31 +1,17 @@
 package net.guselnikov.logicblox.block.runner
 
-import androidx.constraintlayout.widget.VirtualLayout
 import net.guselnikov.logicblox.block.Undefined
-import net.guselnikov.logicblox.block.ValueBoolean
 import net.guselnikov.logicblox.block.ValueDecimal
 import net.guselnikov.logicblox.block.ValueNumber
-import net.guselnikov.logicblox.block.ValueText
 import net.guselnikov.logicblox.block.ValueType
-import net.guselnikov.logicblox.block.parser.Assign
 import net.guselnikov.logicblox.block.parser.BlockGroup
-import net.guselnikov.logicblox.block.parser.Bool
-import net.guselnikov.logicblox.block.parser.Break
 import net.guselnikov.logicblox.block.parser.ConditionGroup
-import net.guselnikov.logicblox.block.parser.Continue
-import net.guselnikov.logicblox.block.parser.EmptyGroup
 import net.guselnikov.logicblox.block.parser.ForLoopGroup
 import net.guselnikov.logicblox.block.parser.FormulaGroup
-import net.guselnikov.logicblox.block.parser.Literal
-import net.guselnikov.logicblox.block.parser.Number
-import net.guselnikov.logicblox.block.parser.Operator
-import net.guselnikov.logicblox.block.parser.Return
-import net.guselnikov.logicblox.block.parser.Token
 import net.guselnikov.logicblox.block.parser.TokenGroup
 import net.guselnikov.logicblox.block.parser.Value
 import net.guselnikov.logicblox.block.parser.WhileLoopGroup
-import net.guselnikov.logicblox.block.parser.Word
-import net.guselnikov.logicblox.block.parser.sortTokens
+import net.guselnikov.logicblox.block.parser.printGroup
 import java.math.BigDecimal
 
 abstract class Console {
@@ -44,9 +30,9 @@ data class GroupResults(
 
 data class FormulaResults(
     val variable: Pair<String?, ValueType>,
-    val shouldReturnFlag: Boolean,
-    val shouldBreakFlag: Boolean,
-    val shouldContinueFlag: Boolean
+    val shouldReturnFlag: Boolean = false,
+    val shouldBreakFlag: Boolean = false,
+    val shouldContinueFlag: Boolean = false
 ) {
     fun toGroupResults() = GroupResults(
         variables = if (variable.first != null) mapOf(
@@ -80,7 +66,6 @@ suspend fun runGroup(
     console: Console? = null
 ): GroupResults {
     return when (tokenGroup) {
-        is EmptyGroup -> GroupResults(mapOf(), false, false, false)
         is FormulaGroup -> {
             runFormula(tokenGroup, params, console).toGroupResults()
         }
@@ -219,98 +204,17 @@ suspend fun runFormula(
     console: Console? = null
 ): FormulaResults {
     return try {
-        var tokensToRun = formulaGroup.tokens
-        val variableName = formulaGroup.variableName
-
         when {
-            tokensToRun.contains(Return) -> FormulaResults(Pair(null, Undefined), true, true, true)
-            tokensToRun.contains(Break) -> FormulaResults(Pair(null, Undefined), false, true, true)
-            tokensToRun.contains(Continue) -> FormulaResults(Pair(null, Undefined), false, false, true)
+            formulaGroup.shouldReturn -> FormulaResults(Pair(null, Undefined), true, true, true)
+            formulaGroup.shouldBreak -> FormulaResults(Pair(null, Undefined), false, true, true)
+            formulaGroup.shouldContinue -> FormulaResults(Pair(null, Undefined), false, false, true)
             else -> {
                 val result = formulaGroup.calculate(params, console)
-
-                    //runFormulaTokens(tokensToRun, params, console)
-
-//            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
-//                console?.print(printTokens(tokens))
-//                console?.print("= ")
-//                console?.println(result.toText())
-//            }
-                FormulaResults(Pair(variableName, result), false, false, false)
+                FormulaResults(Pair(formulaGroup.variableName, result))
             }
         }
     } catch (e: Exception) {
-        FormulaResults(Pair(null, Undefined), false, false, false)
-    }
-}
-
-suspend fun runFormulaTokens(
-    tokens: List<Token>,
-    params: Map<String, ValueType>,
-    console: Console? = null
-): ValueType {
-    // 1. Заменить words и numbers на Value
-    val transformedTokens = ArrayList<Token>(tokens.size)
-    tokens.forEach { initialToken ->
-        transformedTokens.add(initialToken.let {
-            when {
-                it is Word -> {
-                    val param = params[it.string] ?: Undefined
-                    when (param) {
-                        is ValueBoolean -> Bool(param.bool)
-                        is ValueDecimal -> Number(param.decimal)
-                        is ValueText -> Literal(param.text)
-                        Undefined -> Literal("undefined")
-                    }
-                }
-                else -> it
-            }
-        })
-    }
-
-    while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
-        val indexOfOperator = transformedTokens.indexOfFirst {
-            it is Operator || it is Return || it is Break || it is Continue
-        }
-
-        val operatorToken = transformedTokens[indexOfOperator]
-        val operator = operatorToken as? Operator ?: return Undefined
-        if (indexOfOperator < operator.argumentsNumber) return Undefined
-
-        when (operator.argumentsNumber) {
-            2 -> {
-                val lhs = transformedTokens[indexOfOperator - 2] as Value
-                val rhs = transformedTokens[indexOfOperator - 1] as Value
-                val newValue = operator.calculate(lhs, rhs)
-                transformedTokens.add(indexOfOperator - 2, newValue)
-                transformedTokens.remove(lhs)
-                transformedTokens.remove(rhs)
-            }
-
-            1 -> {
-                val value = transformedTokens[indexOfOperator - 1] as Value
-                val newValue = operator.calculate(value)
-                transformedTokens.add(indexOfOperator - 1, newValue)
-                transformedTokens.remove(value)
-
-                if (operator.doesPrint()) {
-                    console?.print(newValue)
-                }
-            }
-
-            0 -> {
-                transformedTokens.add(indexOfOperator, operator.calculate())
-            }
-        }
-
-        transformedTokens.remove(operator)
-    }
-
-    val value = (transformedTokens.getOrNull(0) as? Value) ?: Undefined
-    return when (value) {
-        is Number -> value.toValueNumber()
-        is Bool -> ValueBoolean(value.toBoolean())
-        is Literal -> ValueText(value.toText())
-        else -> Undefined
+        console?.println("${e.message} in \"${printGroup(formulaGroup)}\" at line ${formulaGroup.lineNumber} ")
+        FormulaResults(Pair(null, Undefined))
     }
 }
