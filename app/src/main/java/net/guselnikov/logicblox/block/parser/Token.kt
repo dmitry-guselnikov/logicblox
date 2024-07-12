@@ -23,7 +23,7 @@ sealed class Operator: Token() {
     abstract val argumentsNumber: Int
     abstract val symbols: List<String>
     abstract suspend fun calculate(vararg args: Value): Value
-    abstract fun doesPrint(): Boolean
+    open fun doesPrint(): Boolean = false
 }
 
 data object Or: Operator() {
@@ -37,8 +37,6 @@ data object Or: Operator() {
 
         return Bool(lhs.toBoolean() || rhs.toBoolean())
     }
-
-    override fun doesPrint(): Boolean = false
 }
 data object And: Operator() {
     override val precedence: Int = 0
@@ -51,7 +49,6 @@ data object And: Operator() {
 
         return Bool(lhs.toBoolean() && rhs.toBoolean())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Plus: Operator() {
     override val precedence: Int = 2
@@ -65,7 +62,6 @@ data object Plus: Operator() {
         if (lhs.isText() || rhs.isText()) return Literal(lhs.toText() + rhs.toText())
         return Number(lhs.toDecimal() + rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Minus: Operator() {
     override val precedence: Int = 2
@@ -79,7 +75,6 @@ data object Minus: Operator() {
 
         return Number(lhs.toDecimal() - rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Div: Operator() {
     override val precedence: Int = 3
@@ -98,7 +93,6 @@ data object Div: Operator() {
             Bool(false)
         }
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object Mult: Operator() {
@@ -113,7 +107,6 @@ data object Mult: Operator() {
 
         return Number(lhs.toDecimal() * rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Sqrt: Operator() {
     override val precedence: Int = 5
@@ -125,7 +118,6 @@ data object Sqrt: Operator() {
         val x = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(pow(x.toDecimal(), BigDecimal("0.5")))
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object Pow: Operator() {
@@ -140,7 +132,6 @@ data object Pow: Operator() {
 
         return Number(pow(lhs.toDecimal(), rhs.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Less: Operator() {
     override val precedence: Int = 1
@@ -154,7 +145,6 @@ data object Less: Operator() {
 
         return Bool(lhs.toDecimal() < rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object LessOrEqual: Operator() {
@@ -169,7 +159,6 @@ data object LessOrEqual: Operator() {
 
         return Bool(lhs.toDecimal() <= rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object Greater: Operator() {
@@ -184,7 +173,6 @@ data object Greater: Operator() {
 
         return Bool(lhs.toDecimal() > rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object GreaterOrEqual: Operator() {
     override val precedence: Int = 1
@@ -198,7 +186,6 @@ data object GreaterOrEqual: Operator() {
 
         return Bool(lhs.toDecimal() >= rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Equals: Operator() {
     override val precedence: Int = 1
@@ -212,7 +199,6 @@ data object Equals: Operator() {
 
         return Bool(lhs.toDecimal() == rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object NotEquals: Operator() {
     override val precedence: Int = 1
@@ -226,7 +212,6 @@ data object NotEquals: Operator() {
 
         return Bool(lhs.toDecimal() != rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Mod: Operator() {
     override val precedence: Int = 2
@@ -238,7 +223,6 @@ data object Mod: Operator() {
         val rhs = args.getOrNull(1) ?: Bool(false)
         return Number(lhs.toDecimal() % rhs.toDecimal())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object UnaryMinus: Operator() {
     override val precedence: Int = 5
@@ -250,7 +234,6 @@ data object UnaryMinus: Operator() {
         val lhs = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(lhs.toDecimal().multiply(BigDecimal(-1)))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Factorial: Operator() {
     override val precedence: Int = 6
@@ -262,7 +245,6 @@ data object Factorial: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(factorial(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 /*
     OperatorType.DEGREES -> Number(
@@ -283,7 +265,6 @@ data object Sin: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(sinBigDecimal(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Cos: Operator() {
     override val precedence: Int = 5
@@ -295,7 +276,6 @@ data object Cos: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(cosBigDecimal(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Tan: Operator() {
     override val precedence: Int = 5
@@ -307,7 +287,6 @@ data object Tan: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(tanBigDecimal(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Abs: Operator() {
     override val precedence: Int = 5
@@ -319,7 +298,6 @@ data object Abs: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ZERO)
         return Number(arg.toDecimal().abs())
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Ln: Operator() {
     override val precedence: Int = 5
@@ -331,7 +309,6 @@ data object Ln: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(lnBigDecimal(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 data object Lg: Operator() {
     override val precedence: Int = 5
@@ -343,7 +320,6 @@ data object Lg: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(lgBigDecimal(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object ToInt: Operator() {
@@ -355,7 +331,6 @@ data object ToInt: Operator() {
         val arg = args.getOrNull(0) ?: Number(BigDecimal.ONE)
         return Number(roundToInt(arg.toDecimal()))
     }
-    override fun doesPrint(): Boolean = false
 }
 
 data object Print: Operator() {
@@ -405,7 +380,6 @@ data object Rand: Operator() {
     override suspend fun calculate(vararg args: Value): Value {
         return Number(BigDecimal(Math.random()))
     }
-    override fun doesPrint(): Boolean = false
 }
 
 sealed class Value : Token() {

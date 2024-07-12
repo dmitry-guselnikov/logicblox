@@ -314,7 +314,7 @@ private enum class ForLoopReadingMode {
 // for (i from 1 to 10 step 0.5)
 fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     var mode = ForLoopReadingMode.INIT
-    var iterationVariable: String = ""
+    var iterationVariable = ""
 
     val startValueTokens = arrayListOf<Token>()
     val endValueTokens = arrayListOf<Token>()
@@ -324,6 +324,8 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
     var statementExpressions = arrayListOf<TokenGroup>()
     var skipToIndex = 0
     val tokensSublist = tokens.subList(startIndex, tokens.size)
+
+    var endValueNesting = 0
 
     tokensSublist.forEachIndexed { index, token ->
         nextTokenIndex = startIndex + index
@@ -353,7 +355,11 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
             ForLoopReadingMode.END_VALUE -> {
                 when (token) {
                     Step -> mode = ForLoopReadingMode.STEP
-                    RightBracket -> mode = ForLoopReadingMode.STATEMENT
+                    LeftBracket -> endValueNesting++
+                    RightBracket -> {
+                        endValueNesting--
+                        if (endValueNesting < 0) mode = ForLoopReadingMode.STATEMENT
+                    }
                     else -> endValueTokens.add(token)
                 }
             }
@@ -397,9 +403,7 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
                         loopBlock = BlockGroup(statementExpressions),
                         start = FormulaGroup(startValueTokens),
                         end = FormulaGroup(endValueTokens),
-                        step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else FormulaGroup(
-                            listOf(Number(BigDecimal.ONE))
-                        )
+                        step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else null
                     ),
                     nextTokenIndex
                 )
@@ -413,9 +417,7 @@ fun readForLoop(tokens: List<Token>, startIndex: Int): GroupChunk {
             loopBlock = BlockGroup(statementExpressions),
             start = FormulaGroup(startValueTokens),
             end = FormulaGroup(endValueTokens),
-            step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else FormulaGroup(
-                listOf(Number(BigDecimal.ONE))
-            )
+            step = if (stepValueTokens.isNotEmpty()) FormulaGroup(stepValueTokens) else null
         ),
         nextTokenIndex
     )

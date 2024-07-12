@@ -7,7 +7,22 @@ import kotlin.math.exp
 sealed class TokenGroup {
     abstract fun isEmpty(): Boolean
 }
-class FormulaGroup(val tokens: List<Token>): TokenGroup() {
+class FormulaGroup(unsortedTokens: List<Token>): TokenGroup() {
+    val tokens: List<Token>
+    val variableName: String?
+
+    init {
+        variableName =
+            if (unsortedTokens.getOrNull(1) == Assign) {
+                val name = (unsortedTokens[0] as Word).string
+                tokens = sortTokens(unsortedTokens.subList(2, unsortedTokens.size))
+                name
+            } else {
+                tokens = sortTokens(unsortedTokens)
+                null
+            }
+    }
+
     override fun isEmpty(): Boolean = tokens.isEmpty()
 }
 
@@ -40,7 +55,7 @@ class ForLoopGroup(
     val loopBlock: BlockGroup,
     val start: FormulaGroup,
     val end: FormulaGroup,
-    val step: FormulaGroup) : TokenGroup() {
+    val step: FormulaGroup?) : TokenGroup() {
     override fun isEmpty(): Boolean = loopBlock.isEmpty()
 }
 

@@ -81,7 +81,7 @@ suspend fun runGroup(
     return when (tokenGroup) {
         is EmptyGroup -> GroupResults(mapOf(), false, false, false)
         is FormulaGroup -> {
-            runFormula(tokenGroup.tokens, params, console).toGroupResults()
+            runFormula(tokenGroup, params, console).toGroupResults()
         }
 
         is BlockGroup -> {
@@ -111,7 +111,7 @@ suspend fun runGroup(
 
         is ConditionGroup -> {
             val condition = tokenGroup.condition
-            val conditionResult = runFormula(condition.tokens, params, console).variable.second
+            val conditionResult = runFormula(condition, params, console).variable.second
             if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false, false, false)
 
             if (conditionResult.toBoolean()) {
@@ -130,7 +130,7 @@ suspend fun runGroup(
 
             while (true) {
                 val conditionResult =
-                    runFormula(condition.tokens, loopParams, console).variable.second
+                    runFormula(condition, loopParams, console).variable.second
                 if (conditionResult !is ValueNumber) return GroupResults(mapOf(), false)
 
                 if (conditionResult.toBoolean()) {
@@ -162,14 +162,23 @@ suspend fun runGroup(
 
             val variableName = tokenGroup.variable
 
-            val startValue = runFormula(tokenGroup.start.tokens, loopParams, console).variable.second
+            val startValue =
+                runFormula(tokenGroup.start, loopParams, console).variable.second
             if (startValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
 
-            val endValue = runFormula(tokenGroup.end.tokens, loopParams, console).variable.second
+            val endValue = runFormula(tokenGroup.end, loopParams, console).variable.second
             if (endValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
 
-            val stepValue = runFormula(tokenGroup.step.tokens, loopParams, console).variable.second
-            if (stepValue !is ValueNumber) return GroupResults(mapOf(), false, false, false)
+            val stepFormula = tokenGroup.step
+            val stepValue: ValueNumber = when {
+                stepFormula != null -> runFormula(
+                    stepFormula,
+                    loopParams,
+                    console
+                ).variable.second as? ValueNumber ?: ValueDecimal(BigDecimal.ONE)
+                endValue.toBigDecimal() > startValue.toBigDecimal() -> ValueDecimal(BigDecimal.ONE)
+                else -> ValueDecimal(BigDecimal(-1))
+            }
 
             var iterationValue = startValue as ValueNumber
 
@@ -194,7 +203,8 @@ suspend fun runGroup(
                     break
                 }
 
-                iterationValue = ValueDecimal(iterationValue.toBigDecimal() + stepValue.toBigDecimal())
+                iterationValue =
+                    ValueDecimal(iterationValue.toBigDecimal() + stepValue.toBigDecimal())
             }
 
             GroupResults(loopParams, false, false, false)
@@ -203,26 +213,20 @@ suspend fun runGroup(
 }
 
 suspend fun runFormula(
-    tokens: List<Token>,
+    formulaGroup: FormulaGroup,
     params: Map<String, ValueType>,
     console: Console? = null
 ): FormulaResults {
     return try {
-        var tokensToRun = tokens
-        val variableName: String? =
-            if (tokens.getOrNull(1) == Assign) {
-                val name = (tokensToRun[0] as Word).string
-                tokensToRun = tokensToRun.subList(2, tokens.size)
-                name
-            } else null
+        var tokensToRun = formulaGroup.tokens
+        val variableName = formulaGroup.variableName
 
         when {
-            tokens.contains(Return) -> FormulaResults(Pair(null, Undefined), true, true, true)
-            tokens.contains(Break) -> FormulaResults(Pair(null, Undefined), false, true, true)
-            tokens.contains(Continue) -> FormulaResults(Pair(null, Undefined), false, false, true)
+            tokensToRun.contains(Return) -> FormulaResults(Pair(null, Undefined), true, true, true)
+            tokensToRun.contains(Break) -> FormulaResults(Pair(null, Undefined), false, true, true)
+            tokensToRun.contains(Continue) -> FormulaResults(Pair(null, Undefined), false, false, true)
             else -> {
-                val sortedTokens = sortTokens(tokensToRun)
-                val result = runFormulaTokens(sortedTokens, params, console)
+                val result = runFormulaTokens(tokensToRun, params, console)
 
 //            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
 //                console?.print(printTokens(tokens))
