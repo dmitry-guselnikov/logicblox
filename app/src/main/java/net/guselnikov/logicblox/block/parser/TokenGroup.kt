@@ -1,29 +1,167 @@
 package net.guselnikov.logicblox.block.parser
 
-import net.guselnikov.logicblox.block.base.GroupBlock
-import java.math.BigDecimal
-import kotlin.math.exp
+import net.guselnikov.logicblox.block.Undefined
+import net.guselnikov.logicblox.block.ValueBoolean
+import net.guselnikov.logicblox.block.ValueDecimal
+import net.guselnikov.logicblox.block.ValueText
+import net.guselnikov.logicblox.block.ValueType
+import net.guselnikov.logicblox.block.runner.Console
 
 sealed class TokenGroup {
     abstract fun isEmpty(): Boolean
 }
+
+// При создании FormulaGroup закешировать всё, что можно
+//
 class FormulaGroup(unsortedTokens: List<Token>): TokenGroup() {
     val tokens: List<Token>
     val variableName: String?
+    val transformedTokens: ArrayList<Token?>
+    val actions: ArrayList<OperationAction> = arrayListOf()
+    var isImmediateUndefinedReturn: Boolean
+
+
+    data class OperationAction(
+        val operator: Operator,
+        val indicies: List<Int>
+    )
 
     init {
-        variableName =
-            if (unsortedTokens.getOrNull(1) == Assign) {
-                val name = (unsortedTokens[0] as Word).string
-                tokens = sortTokens(unsortedTokens.subList(2, unsortedTokens.size))
-                name
-            } else {
-                tokens = sortTokens(unsortedTokens)
-                null
+        variableName = if (unsortedTokens.getOrNull(1) == Assign) {
+            val name = (unsortedTokens[0] as Word).string
+            tokens = sortTokens(unsortedTokens.subList(2, unsortedTokens.size))
+            name
+        } else {
+            tokens = sortTokens(unsortedTokens)
+            null
+        }
+
+        transformedTokens = ArrayList(tokens.size)
+        tokens.forEach {
+            transformedTokens.add(it)
+        }
+
+        isImmediateUndefinedReturn = false
+
+        while (transformedTokens.filterNotNull().size > 1 || transformedTokens.getOrNull(0) !is Value) {
+            val indexOfOperator = transformedTokens.indexOfFirst {
+                it is Operator || it is Return || it is Break || it is Continue
             }
+
+            if (indexOfOperator < 0) {
+                break
+            }
+
+            val operatorToken = transformedTokens[indexOfOperator]
+            val operator = operatorToken as? Operator
+            if (operator == null) {
+                isImmediateUndefinedReturn = true
+                break
+            }
+            if (indexOfOperator < operator.argumentsNumber) {
+                isImmediateUndefinedReturn = true
+                break
+            }
+
+            when (operator.argumentsNumber) {
+                2 -> {
+                    // Ищем индекс rhs
+                    var rhsIndex = indexOfOperator - 1
+                    for (i in 1..indexOfOperator) {
+                        val candidateToken = transformedTokens[indexOfOperator - i]
+                        if (candidateToken is Value || candidateToken is Word) {
+                            rhsIndex = indexOfOperator - i
+                            break
+                        }
+                    }
+
+                    // Ищем индекс lhs
+                    var lhsIndex = rhsIndex - 1
+                    for (i in 1..rhsIndex) {
+                        val candidateToken = transformedTokens[rhsIndex - i]
+                        if (candidateToken is Value || candidateToken is Word) {
+                            lhsIndex = rhsIndex - i
+                            break
+                        }
+                    }
+
+                    actions.add(
+                        OperationAction(operator, listOf(lhsIndex, rhsIndex))
+                    )
+
+                    transformedTokens[rhsIndex] = null
+                    transformedTokens[indexOfOperator] = null
+                }
+
+                1 -> {
+                    var valueIndex = indexOfOperator - 1
+                    for (i in 1..indexOfOperator) {
+                        val candidateToken = transformedTokens[indexOfOperator - i]
+                        if (candidateToken is Value || candidateToken is Word) {
+                            valueIndex = indexOfOperator - i
+                            break
+                        }
+                    }
+
+                    actions.add(
+                        OperationAction(operator, listOf(valueIndex))
+                    )
+
+                    transformedTokens[indexOfOperator] = null
+                }
+
+                0 -> {
+                    actions.add(OperationAction(operator, listOf()))
+                }
+            }
+        }
     }
 
     override fun isEmpty(): Boolean = tokens.isEmpty()
+
+    suspend fun calculate(params: Map<String, ValueType>, console: Console? = null): ValueType {
+        if (isImmediateUndefinedReturn) return Undefined
+
+        tokens.forEachIndexed { index, token ->
+            transformedTokens[index] = token.let {
+                when {
+                    it is Word -> {
+                        val param = params[it.string] ?: Undefined
+                        when (param) {
+                            is ValueBoolean -> Bool(param.bool)
+                            is ValueDecimal -> Number(param.decimal)
+                            is ValueText -> Literal(param.text)
+                            Undefined -> Literal("undefined")
+                        }
+                    }
+                    else -> it
+                }
+            }
+        }
+
+        actions.forEach { action ->
+            val operatorParams = action.indicies.map { index ->
+                transformedTokens[index] as Value
+            }.toTypedArray()
+
+            val newValue = action.operator.calculate(*operatorParams)
+            val newValueIndex = action.indicies.getOrNull(0)
+            if (newValueIndex != null) {
+                transformedTokens[newValueIndex] = newValue
+            }
+            if (action.operator.doesPrint()) {
+                console?.print(newValue)
+            }
+        }
+
+        val value = (transformedTokens.getOrNull(0) as? Value) ?: Undefined
+        return when (value) {
+            is Number -> value.toValueNumber()
+            is Bool -> ValueBoolean(value.toBoolean())
+            is Literal -> ValueText(value.toText())
+            else -> Undefined
+        }
+    }
 }
 
 class BlockGroup(val expressions: List<TokenGroup>): TokenGroup() {

@@ -92,7 +92,6 @@ class EditCodeActivity : AppCompatActivity() {
             console.clear()
 
             viewModel.runCode(code)
-            consoleTV.postDelayed({ consoleTV.isVisible = false }, 100000L)
         }
     }
 

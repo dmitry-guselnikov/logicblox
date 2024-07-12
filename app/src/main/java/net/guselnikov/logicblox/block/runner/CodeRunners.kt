@@ -1,5 +1,6 @@
 package net.guselnikov.logicblox.block.runner
 
+import androidx.constraintlayout.widget.VirtualLayout
 import net.guselnikov.logicblox.block.Undefined
 import net.guselnikov.logicblox.block.ValueBoolean
 import net.guselnikov.logicblox.block.ValueDecimal
@@ -226,7 +227,9 @@ suspend fun runFormula(
             tokensToRun.contains(Break) -> FormulaResults(Pair(null, Undefined), false, true, true)
             tokensToRun.contains(Continue) -> FormulaResults(Pair(null, Undefined), false, false, true)
             else -> {
-                val result = runFormulaTokens(tokensToRun, params, console)
+                val result = formulaGroup.calculate(params, console)
+
+                    //runFormulaTokens(tokensToRun, params, console)
 
 //            if (variableName == null && !tokens.contains(Print) && !tokens.contains(Println)) {
 //                console?.print(printTokens(tokens))
@@ -247,12 +250,12 @@ suspend fun runFormulaTokens(
     console: Console? = null
 ): ValueType {
     // 1. Заменить words и numbers на Value
-    val transformedTokens = arrayListOf<Token>()
-    transformedTokens.addAll(
-        tokens.map { token ->
+    val transformedTokens = ArrayList<Token>(tokens.size)
+    tokens.forEach { initialToken ->
+        transformedTokens.add(initialToken.let {
             when {
-                token is Word -> {
-                    val param = params[token.string] ?: Undefined
+                it is Word -> {
+                    val param = params[it.string] ?: Undefined
                     when (param) {
                         is ValueBoolean -> Bool(param.bool)
                         is ValueDecimal -> Number(param.decimal)
@@ -260,11 +263,10 @@ suspend fun runFormulaTokens(
                         Undefined -> Literal("undefined")
                     }
                 }
-
-                else -> token
+                else -> it
             }
-        }
-    )
+        })
+    }
 
     while (transformedTokens.size > 1 || transformedTokens.getOrNull(0) !is Value) {
         val indexOfOperator = transformedTokens.indexOfFirst {
