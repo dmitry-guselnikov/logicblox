@@ -28,12 +28,25 @@
             android:padding="16dp"
             app:srcCompat="@drawable/btn_run" />
 
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/btn_console"
+            android:layout_width="64dp"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:padding="16dp"
+            android:layout_toStartOf="@id/btn_run"
+            app:srcCompat="@drawable/btn_console" />
+
         <TextView
             android:id="@+id/saved_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_toStartOf="@id/btn_run"
+            android:layout_marginEnd="12dp"
+            android:layout_toStartOf="@id/btn_console"
             android:text="@string/changes_saved" />
 
         <TextView
@@ -53,7 +66,7 @@
 
     </RelativeLayout>
 
-    <com.amrdeveloper.codeview.CodeView
+    <net.guselnikov.logicblox.presentation.view.SelectableLineCodeView
         android:id="@+id/code_input"
         android:padding="8dp"
         android:layout_marginTop="64dp"
