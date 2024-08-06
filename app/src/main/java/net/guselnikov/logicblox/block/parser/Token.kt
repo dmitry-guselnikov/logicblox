@@ -384,11 +384,11 @@ sealed class Value : Token() {
 
 object Rand : Value() {
     override fun toValueNumber(): ValueNumber = ValueDecimal(BigDecimal(Math.random()))
-    override fun toValueText(): ValueText = ValueText("rand")
+    override fun toValueText(): ValueText = ValueText(toText())
     override fun toDecimal(): BigDecimal = BigDecimal(Math.random())
     override fun toDouble(): Double = Math.random()
     override fun toBoolean(): Boolean = true
-    override fun toText(): String = "rand"
+    override fun toText(): String = toValueNumber().toText()
     override fun isText(): Boolean = false
 }
 
