@@ -12,7 +12,7 @@ import kotlin.Exception
 import kotlin.text.StringBuilder
 
 val supportedOperators: List<Operator> = listOf(
-    Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Rand
+    Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt
 )
 val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
@@ -282,6 +282,7 @@ fun printTokens(tokens: List<Token>, delimeter: String = " "): String {
             Step -> builder.append("step")
             To -> builder.append("to")
             is Values -> builder.append("[${printTokens(it.values, ", ")}]")
+            Rand -> builder.append("rand")
         }
 
         if (it != NewLine) builder.append(delimeter)

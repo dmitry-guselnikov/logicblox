@@ -372,16 +372,6 @@ data object Sleep: Operator() {
     override fun doesPrint(): Boolean = false
 }
 
-data object Rand: Operator() {
-    override val precedence: Int = 7
-    override val isRightHand: Boolean = false
-    override val argumentsNumber: Int = 0
-    override val symbols: List<String> = listOf("rand")
-    override suspend fun calculate(vararg args: Value): Value {
-        return Number(BigDecimal(Math.random()))
-    }
-}
-
 sealed class Value : Token() {
     abstract fun toValueNumber(): ValueNumber
     abstract fun toValueText(): ValueText
@@ -390,6 +380,16 @@ sealed class Value : Token() {
     abstract fun toBoolean(): Boolean
     abstract fun toText(): String
     abstract fun isText(): Boolean
+}
+
+object Rand : Value() {
+    override fun toValueNumber(): ValueNumber = ValueDecimal(BigDecimal(Math.random()))
+    override fun toValueText(): ValueText = ValueText("rand")
+    override fun toDecimal(): BigDecimal = BigDecimal(Math.random())
+    override fun toDouble(): Double = Math.random()
+    override fun toBoolean(): Boolean = true
+    override fun toText(): String = "rand"
+    override fun isText(): Boolean = false
 }
 
 class Number(private val decimal: BigDecimal) : Value() {

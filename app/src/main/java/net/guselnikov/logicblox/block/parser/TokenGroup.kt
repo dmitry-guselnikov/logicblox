@@ -111,7 +111,8 @@ class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenG
                 }
 
                 0 -> {
-                    actions.add(OperationAction(operator, listOf()))
+                    actions.add(OperationAction(operator, listOf(indexOfOperator)))
+                    transformedTokens[indexOfOperator] = null
                 }
             }
         }
@@ -125,6 +126,7 @@ class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenG
         tokens.forEachIndexed { index, token ->
             transformedTokens[index] = token.let {
                 when {
+                    it is Word && it.string.equals("rand", true) -> Rand
                     it is Word -> {
                         val param = params[it.string] ?: Undefined
                         when (param) {
@@ -140,15 +142,21 @@ class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenG
         }
 
         actions.forEach { action ->
-            val operatorParams = action.indicies.map { index ->
-                transformedTokens[index] as Value
+            val operatorParams = action.indicies.mapNotNull { index ->
+                transformedTokens[index] as? Value
             }.toTypedArray()
 
-            val newValue = action.operator.calculate(*operatorParams)
+            val newValue = if (operatorParams.isNotEmpty()) {
+                action.operator.calculate(*operatorParams)
+            } else {
+                action.operator.calculate()
+            }
+
             val newValueIndex = action.indicies.getOrNull(0)
             if (newValueIndex != null) {
                 transformedTokens[newValueIndex] = newValue
             }
+
             if (action.operator.doesPrint()) {
                 console?.print(newValue)
             }

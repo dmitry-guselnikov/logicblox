@@ -9,6 +9,7 @@ android {
 
     defaultConfig {
         applicationId "net.guselnikov.logicblox"
+
         minSdk 26
         targetSdk 34
         versionCode 1
