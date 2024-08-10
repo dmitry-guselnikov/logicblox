@@ -66,7 +66,7 @@ fun readFormula(tokens: List<Token>, startIndex: Int): GroupChunk {
         tokens.subList(startIndex, tokens.size).forEachIndexed { index, token ->
             nextTokenIndex = startIndex + index
             when (token) {
-                is Value, is Word, is Operator, LeftBracket, RightBracket, Assign, Return, Break, Continue -> {
+                is Value, is Word, is Operator, LeftBracket, RightBracket, Assign, Return, Break, Continue, Clear -> {
                     formulaTokens.add(token)
                     if (lineNumber == null) {
                         lineNumber = tokens.subList(0, nextTokenIndex).count { it == NewLine } + 1
@@ -468,6 +468,7 @@ fun tokens(code: String): List<Token> {
             "π" -> tokens.add(Number(BigDecimal("3.1415926535897932384626433832795")))
             "true" -> tokens.add(Bool(true))
             "false" -> tokens.add(Bool(false))
+            "rand" -> tokens.add(Rand)
             else -> tokens.add(Word(word))
         }
         currentWord.clear()

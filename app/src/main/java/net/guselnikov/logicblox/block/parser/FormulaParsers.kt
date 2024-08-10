@@ -12,7 +12,7 @@ import kotlin.Exception
 import kotlin.text.StringBuilder
 
 val supportedOperators: List<Operator> = listOf(
-    Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt
+    Sleep, Println, Print, Or, And, Plus, Minus, Div, Mult, Sqrt, Pow, LessOrEqual, GreaterOrEqual, Less, Greater, Equals, NotEquals, Mod, Sin, Cos, Tan, Abs, Ln, Lg, ToInt, Clear
 )
 val operationStrings = supportedOperators.map { it.symbols }.flatten().toTypedArray()
 
@@ -34,9 +34,11 @@ private fun parse(formula: String): List<Token> {
     fun writeWord() {
         readingWord = false
         when (val word = currentWord.toString()) {
-            "π" -> tokens.add(Number(BigDecimal("3.1415926535897932384626433832795")))
+            "π", "pi" -> tokens.add(Number(BigDecimal("3.1415926535897932384626433832795")))
             "true" -> tokens.add(Bool(true))
             "false" -> tokens.add(Bool(false))
+            "rand" -> tokens.add(Rand)
+            "clear" -> tokens.add(Clear)
             else -> tokens.add(Word(word))
         }
         currentWord.clear()
@@ -283,6 +285,8 @@ fun printTokens(tokens: List<Token>, delimeter: String = " "): String {
             To -> builder.append("to")
             is Values -> builder.append("[${printTokens(it.values, ", ")}]")
             Rand -> builder.append("rand")
+            Clear -> builder.append("clear")
+            ClearConsole -> builder.append("clear console")
         }
 
         if (it != NewLine) builder.append(delimeter)

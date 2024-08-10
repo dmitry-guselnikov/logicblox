@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:layout_alignParentTop="true"
-        android:background="#EEEEEE"
+        android:background="@android:color/black"
         android:gravity="end"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
@@ -26,6 +26,7 @@
             android:focusableInTouchMode="false"
             android:foreground="?android:attr/selectableItemBackground"
             android:padding="16dp"
+            app:tint="#404040"
             app:srcCompat="@drawable/btn_run" />
 
         <androidx.appcompat.widget.AppCompatImageView
@@ -38,6 +39,7 @@
             android:foreground="?android:attr/selectableItemBackground"
             android:padding="16dp"
             android:layout_toStartOf="@id/btn_run"
+            app:tint="#404040"
             app:srcCompat="@drawable/btn_console" />
 
         <TextView
@@ -61,7 +63,7 @@
             android:foreground="?android:attr/selectableItemBackground"
             android:padding="16dp"
             android:text="@string/save_btn"
-            android:textColor="#308010"
+            android:textColor="#104010"
             android:textStyle="bold" />
 
     </RelativeLayout>
@@ -72,7 +74,7 @@
         android:layout_marginTop="64dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#404040"
+        android:background="#101010"
         android:dropDownWidth="200dp"
         android:fontFamily="@font/firacode"
         android:dropDownHorizontalOffset="0dp"
@@ -98,7 +100,7 @@
                 android:fontFamily="@font/firacode"
                 android:minHeight="360dp"
                 android:padding="16dp"
-                android:textColor="@color/white"
+                android:textColor="#808080"
                 android:textSize="9dp"
                 android:visibility="gone"
                 tools:text="x = 20"

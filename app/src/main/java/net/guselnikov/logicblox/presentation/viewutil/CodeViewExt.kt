@@ -16,7 +16,7 @@ fun SelectableLineCodeView.setup() {
         else "\\b${s}\\b"
     }
     val booleanPattern = "\\btrue\\b|\\bfalse\\b"
-    val functionsPattern = "\\bsin\\b|\\bcos\\b|\\btg\\b|\\btan\\b|\\bmod\\b|\\bint\\b|\\bprintln\\b|\\bprint\\b|\\bsleep\\b|\\bsqrt\\b|\\babs\\b|\\bln\\b|\\blg\\b|\\brand\\b"
+    val functionsPattern = "\\bsin\\b|\\bcos\\b|\\btg\\b|\\btan\\b|\\bmod\\b|\\bint\\b|\\bprintln\\b|\\bprint\\b|\\bsleep\\b|\\bsqrt\\b|\\babs\\b|\\bln\\b|\\blg\\b|\\brand\\b|\\bclear\\b"
     val stringsPattern = "\"([^\"]*)\""
     val commentPattern ="//.*"
     val constantsPattern = "\\bscreenWidth\\b|\\bscreenHeight\\b"

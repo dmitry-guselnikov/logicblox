@@ -17,6 +17,7 @@ import java.math.MathContext
 import java.math.RoundingMode
 
 sealed class Token
+
 sealed class Operator: Token() {
     abstract val precedence: Int
     abstract val isRightHand: Boolean
@@ -357,6 +358,17 @@ data object Println: Operator() {
     override fun doesPrint(): Boolean = true
 }
 
+data object Clear: Operator() {
+    override val precedence: Int  = -1
+    override val isRightHand: Boolean = false
+    override val argumentsNumber: Int = 0
+    override val symbols: List<String> = listOf("clear")
+    override suspend fun calculate(vararg args: Value): Value {
+        return ClearConsole
+    }
+    override fun doesPrint(): Boolean = true
+}
+
 data object Sleep: Operator() {
     override val precedence: Int = -1
     override val isRightHand: Boolean = false
@@ -382,7 +394,17 @@ sealed class Value : Token() {
     abstract fun isText(): Boolean
 }
 
-object Rand : Value() {
+data object ClearConsole : Value() {
+    override fun toValueNumber(): ValueNumber = ValueBoolean(false)
+    override fun toValueText(): ValueText = ValueText("clear console")
+    override fun toDecimal(): BigDecimal = toValueNumber().toBigDecimal()
+    override fun toDouble(): Double = toValueNumber().toDouble()
+    override fun toBoolean(): Boolean = false
+    override fun toText(): String = "clear console"
+    override fun isText(): Boolean = false
+}
+
+data object Rand : Value() {
     override fun toValueNumber(): ValueNumber = ValueDecimal(BigDecimal(Math.random()))
     override fun toValueText(): ValueText = ValueText(toText())
     override fun toDecimal(): BigDecimal = BigDecimal(Math.random())

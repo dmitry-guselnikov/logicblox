@@ -126,7 +126,6 @@ class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenG
         tokens.forEachIndexed { index, token ->
             transformedTokens[index] = token.let {
                 when {
-                    it is Word && it.string.equals("rand", true) -> Rand
                     it is Word -> {
                         val param = params[it.string] ?: Undefined
                         when (param) {
@@ -158,7 +157,11 @@ class FormulaGroup(val unsortedTokens: List<Token>, val lineNumber: Int): TokenG
             }
 
             if (action.operator.doesPrint()) {
-                console?.print(newValue)
+                if (newValue == ClearConsole) {
+                    console?.clear()
+                } else {
+                    console?.print(newValue)
+                }
             }
         }
 
